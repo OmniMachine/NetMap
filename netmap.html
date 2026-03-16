@@ -87,6 +87,20 @@
   .node-sub   { font-family:'JetBrains Mono',monospace; font-size:9px;  fill:rgba(255,255,255,.55); }
   .node-badge { font-family:'Rajdhani',sans-serif; font-size:8px; letter-spacing:1.5px; text-transform:uppercase; fill:rgba(255,255,255,.4); }
 
+  /* OFFLINE NODE */
+  .node-offline { filter: grayscale(0.85) opacity(0.55); }
+  .node-offline-badge { font-family:'Rajdhani',sans-serif; font-size:8px; font-weight:700; letter-spacing:1.5px; fill:#ef4444; }
+  .edge-offline { stroke:#1e2433 !important; stroke-dasharray:5,4; opacity:0.35; }
+
+  /* MULTI-IP helpers */
+  .ip-add-btn { font-size:10px; padding:2px 10px; background:var(--bg-card); border:1px dashed var(--border-hi); color:var(--accent2); border-radius:4px; cursor:pointer; font-family:inherit; transition:all .15s; }
+  .ip-add-btn:hover { background:var(--bg-panel); border-color:var(--accent2); }
+  .ip-row { display:flex; gap:6px; align-items:center; margin-bottom:5px; }
+  .ip-row input { flex:1; background:var(--bg-card); border:1px solid var(--border); border-radius:5px; color:var(--text-pri); font-family:inherit; font-size:12px; padding:7px 10px; outline:none; transition:border-color .15s; }
+  .ip-row input:focus { border-color:var(--accent); }
+  .ip-del-btn { background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:18px; padding:2px 5px; border-radius:3px; line-height:1; }
+  .ip-del-btn:hover { color:var(--red); background:rgba(239,68,68,.1); }
+
   /* EDGES */
   .edge-line { stroke-width:1.5; stroke-linecap:round; fill:none; }
   .edge-line.selected { stroke-width:2.5; }
@@ -379,6 +393,7 @@
   <div class="ctx-item" id="ctx-edit"    onclick="ctxEdit()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit Properties</div>
   <div class="ctx-item" id="ctx-tags"    onclick="ctxTags()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Edit Tags</div>
   <div class="ctx-item" id="ctx-conn"    onclick="ctxConn()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>Connect From</div>
+  <div class="ctx-item" id="ctx-offline" onclick="ctxToggleOffline()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span id="ctx-offline-label">Toggle Offline</span></div>
   <div class="ctx-sep"></div>
   <div class="ctx-item danger" id="ctx-del" onclick="ctxDel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>Delete</div>
 </div>
@@ -387,7 +402,21 @@
   <div id="modal">
     <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Node Properties</h3>
     <div class="form-row"><label>Hostname / Label</label><input type="text" id="f-name" placeholder="e.g. web-server-01"/></div>
-    <div class="form-row"><label>IP Address</label><input type="text" id="f-ip" placeholder="e.g. 192.168.1.10/24"/></div>
+    <div class="form-row">
+      <label style="display:flex;align-items:center;justify-content:space-between;">
+        IP Address(es)
+        <button type="button" class="ip-add-btn" onclick="addIpRow()">+ Add IP</button>
+      </label>
+      <div id="f-ips-container"></div>
+    </div>
+    <div class="form-row" style="display:flex;align-items:center;justify-content:space-between;">
+      <label for="f-offline" style="margin-bottom:0;cursor:pointer;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);">Mark as offline</label>
+      <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer;flex-shrink:0;">
+        <input type="checkbox" id="f-offline" style="opacity:0;width:0;height:0;position:absolute;">
+        <span id="f-offline-track" style="position:absolute;inset:0;background:var(--bg-surface);border:1px solid var(--border);border-radius:11px;transition:all .2s;"></span>
+        <span id="f-offline-thumb" style="position:absolute;left:3px;top:3px;width:14px;height:14px;background:var(--text-dim);border-radius:50%;transition:all .2s;"></span>
+      </label>
+    </div>
     <div class="form-row"><label>VLAN ID / Name</label><input type="text" id="f-vlan" placeholder="e.g. VLAN 10 — Management"/></div>
     <div class="form-row"><label>Notes</label><input type="text" id="f-notes" placeholder="Optional description"/></div>
     <div class="form-row" style="flex-direction:column;gap:6px;">
@@ -510,6 +539,7 @@ const MAX_TABS = 20;
 const MAX_TAGS = 10;
 const MAX_TAG_LINES = 20;
 const MAX_TAG_LINE_LEN = 200;
+const MAX_IPS = 8;
 
 // VLAN child layout constants
 const VH_TOP  = 38;
@@ -711,7 +741,7 @@ function buildNode(n) {
 
   const g=svgEl('g');
   g.setAttribute('id',`node-${n.id}`);
-  g.setAttribute('class',`node-group${locked?' locked':''}`);
+  g.setAttribute('class',`node-group${locked?' locked':''}${n.offline?' node-offline':''}`);
   g.setAttribute('transform',`translate(${n.x},${n.y})`);
 
   if (n.type==='vlan') buildVlan(g,n,W,H,col,sel);
@@ -770,7 +800,7 @@ function buildTags(g, n, W) {
 
   tags.forEach(tag => {
     const cfg = TAG_CFG[tag.type];
-    if (!cfg) return; // unknown tag type — skip silently
+    if (!cfg) return;
     const lines = (tag.lines||[]).filter(l=>l.trim());
     const TH = TH_BASE + (lines.length > 0 ? lines.length * LINE_H + 2 : 0);
 
@@ -785,7 +815,6 @@ function buildTags(g, n, W) {
     bg.setAttribute('fill', rgba(cfg.color, 0.15));
     bg.setAttribute('stroke', cfg.color); bg.setAttribute('stroke-width', 1);
     tg.appendChild(bg);
-    // If this ever becomes dynamic, switch to DOMParser + whitelist.
     const ig = svgEl('g');
     ig.setAttribute('transform', `translate(${PAD}, ${(TH_BASE-ICO)/2})`);
     ig.setAttribute('stroke', cfg.color); ig.setAttribute('fill','none');
@@ -840,31 +869,45 @@ function buildTags(g, n, W) {
 }
 
 function buildVlan(g,n,W,H,col,sel) {
+  const effCol = n.offline ? '#3a4050' : col;
   const bg=svgEl('rect');
   bg.setAttribute('width',W); bg.setAttribute('height',H); bg.setAttribute('rx',10);
-  bg.setAttribute('fill',rgba(col,0.07)); bg.setAttribute('stroke',col);
-  bg.setAttribute('stroke-width',sel?2.5:1.5); bg.setAttribute('stroke-dasharray','7,3');
+  bg.setAttribute('fill',rgba(effCol, n.offline ? 0.04 : 0.07));
+  bg.setAttribute('stroke', n.offline ? '#2a3040' : col);
+  bg.setAttribute('stroke-width',sel?2.5:1.5);
+  bg.setAttribute('stroke-dasharray', n.offline ? '4,5' : '7,3');
   bg.setAttribute('filter','drop-shadow(0 2px 10px rgba(0,0,0,.4))');
   g.appendChild(bg);
 
   const hbg=svgEl('rect');
   hbg.setAttribute('width',W); hbg.setAttribute('height',VH_TOP); hbg.setAttribute('rx',10);
-  hbg.setAttribute('fill',rgba(col,0.16)); hbg.setAttribute('stroke','none');
+  hbg.setAttribute('fill',rgba(effCol,0.16)); hbg.setAttribute('stroke','none');
   g.appendChild(hbg);
   const hbg2=svgEl('rect');
   hbg2.setAttribute('y',VH_TOP/2); hbg2.setAttribute('width',W); hbg2.setAttribute('height',VH_TOP/2);
-  hbg2.setAttribute('fill',rgba(col,0.16)); g.appendChild(hbg2);
-  const badge = txt(8, rgba(col,0.8), 10, 13, 'VLAN');
-  badge.setAttribute('font-family',"'Rajdhani',sans-serif");
-  badge.setAttribute('letter-spacing',2); badge.setAttribute('font-weight',700);
-  g.appendChild(badge);
+  hbg2.setAttribute('fill',rgba(effCol,0.16)); g.appendChild(hbg2);
 
-  const nameEl = txt(11,'#fff',W/2,VH_TOP/2+6, trunc(n.name||'VLAN',28));
+  if (n.offline) {
+    const ob = txt(7, '#ef4444', W-8, 13, '⊘ OFFLINE');
+    ob.setAttribute('font-family',"'Rajdhani',sans-serif");
+    ob.setAttribute('font-weight',700); ob.setAttribute('letter-spacing',1.2);
+    ob.setAttribute('text-anchor','end');
+    g.appendChild(ob);
+  } else {
+    const badge = txt(8, rgba(col,0.8), 10, 13, 'VLAN');
+    badge.setAttribute('font-family',"'Rajdhani',sans-serif");
+    badge.setAttribute('letter-spacing',2); badge.setAttribute('font-weight',700);
+    g.appendChild(badge);
+  }
+
+  const nameEl = txt(11, n.offline ? 'rgba(255,255,255,.4)' : '#fff', W/2, VH_TOP/2+6, trunc(n.name||'VLAN',28));
   nameEl.setAttribute('text-anchor','middle'); nameEl.setAttribute('font-weight','500');
   g.appendChild(nameEl);
 
-  if (n.ip) {
-    const ip = txt(9, rgba(col,0.6), W/2, VH_TOP/2+18, n.ip);
+  const ips = n.ips && n.ips.length ? n.ips : (n.ip ? [n.ip] : []);
+  if (ips.length) {
+    const ipText = ips[0] + (ips.length > 1 ? ` +${ips.length-1}` : '');
+    const ip = txt(9, rgba(n.offline ? '#888888' : col, 0.6), W/2, VH_TOP/2+18, ipText);
     ip.setAttribute('text-anchor','middle'); g.appendChild(ip);
   }
 
@@ -875,37 +918,60 @@ function buildVlan(g,n,W,H,col,sel) {
 }
 
 function buildRegular(g,n,W,H,col,sel) {
+  const effCol = n.offline ? '#4a5568' : col;
   const bg=svgEl('rect');
   bg.setAttribute('width',W); bg.setAttribute('height',H); bg.setAttribute('rx',7);
-  bg.setAttribute('fill',rgba(col,0.11)); bg.setAttribute('stroke',col);
-  bg.setAttribute('stroke-width',sel?2:1.5);
+  bg.setAttribute('fill',rgba(effCol, n.offline ? 0.07 : 0.11));
+  bg.setAttribute('stroke', n.offline ? '#3a4050' : col);
+  bg.setAttribute('stroke-width', n.offline ? 1 : (sel ? 2 : 1.5));
+  if (n.offline) bg.setAttribute('stroke-dasharray','5,3');
   bg.setAttribute('filter','drop-shadow(0 2px 8px rgba(0,0,0,.5))');
   g.appendChild(bg);
 
   const bar=svgEl('rect');
   bar.setAttribute('width',4); bar.setAttribute('height',H); bar.setAttribute('rx',4);
-  bar.setAttribute('fill',col); g.appendChild(bar);
+  bar.setAttribute('fill', n.offline ? '#2e3545' : col);
+  g.appendChild(bar);
+
   const ig=svgEl('g');
   ig.setAttribute('transform',`translate(12,${Math.round(H/2-8)})`);
-  ig.setAttribute('stroke',col); ig.setAttribute('fill','none');
-  ig.innerHTML=(ICONS[n.type]||'').replace(/fill="COL"/g,`fill="${col}"`);
+  ig.setAttribute('stroke', n.offline ? '#4a5568' : col); ig.setAttribute('fill','none');
+  ig.innerHTML=(ICONS[n.type]||'').replace(/fill="COL"/g,`fill="${n.offline ? '#4a5568' : col}"`);
   g.appendChild(ig);
-  const badge = txt(8, 'rgba(255,255,255,.35)', W-7, 11, n.type.toUpperCase());
-  badge.setAttribute('font-family',"'Rajdhani',sans-serif");
-  badge.setAttribute('font-weight',700); badge.setAttribute('letter-spacing',1.5);
-  badge.setAttribute('text-anchor','end');
-  g.appendChild(badge);
 
-  const hasIp=!!n.ip;
-  const ny=hasIp ? Math.round(H/2)-4 : Math.round(H/2)+4;
-  const nameEl = txt(11,'#fff',36,ny, trunc(n.name||'Node',Math.floor((W-44)/7)));
+  // Type badge or offline badge
+  if (n.offline) {
+    const ob = txt(7, '#ef4444', W-7, 11, '⊘ OFFLINE');
+    ob.setAttribute('font-family',"'Rajdhani',sans-serif");
+    ob.setAttribute('font-weight',700); ob.setAttribute('letter-spacing',1.2);
+    ob.setAttribute('text-anchor','end');
+    g.appendChild(ob);
+  } else {
+    const badge = txt(8, 'rgba(255,255,255,.35)', W-7, 11, n.type.toUpperCase());
+    badge.setAttribute('font-family',"'Rajdhani',sans-serif");
+    badge.setAttribute('font-weight',700); badge.setAttribute('letter-spacing',1.5);
+    badge.setAttribute('text-anchor','end');
+    g.appendChild(badge);
+  }
+
+  // IPs (first one shown, +N if more)
+  const ips = n.ips && n.ips.length ? n.ips : (n.ip ? [n.ip] : []);
+  const hasIp = ips.length > 0;
+  const ipFill = n.offline ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.5)';
+  const nameFill = n.offline ? 'rgba(255,255,255,.45)' : '#fff';
+  const ny = hasIp ? Math.round(H/2)-4 : Math.round(H/2)+4;
+  const nameEl = txt(11, nameFill, 36, ny, trunc(n.name||'Node', Math.floor((W-44)/7)));
   nameEl.setAttribute('font-weight','500');
   g.appendChild(nameEl);
 
   if (hasIp) {
-    g.appendChild(txt(9,'rgba(255,255,255,.5)',36,ny+13, trunc(n.ip,Math.floor((W-44)/6))));
+    const suffix = ips.length > 1 ? ` +${ips.length-1}` : '';
+    const maxChars = Math.floor((W-44)/6) - suffix.length;
+    const ipText = trunc(ips[0], maxChars) + suffix;
+    g.appendChild(txt(9, ipFill, 36, ny+13, ipText));
   }
-  if (n.notes) {
+
+  if (n.notes && !n.offline) {
     const nt = txt(8,'rgba(255,255,255,.28)',W/2,H-5, trunc(n.notes,22));
     nt.setAttribute('text-anchor','middle'); g.appendChild(nt);
   }
@@ -921,10 +987,12 @@ function renderEdges() {
     const fp=sideCenter(fn,tcx,tcy);
     const tp=sideCenter(tn,fcx,fcy);
 
-    const sel=e.id===selectedEdge, col=sel?'#3b82f6':'#2e3a52';
+    const sel = e.id===selectedEdge;
+    const isOfflineEdge = fn.offline || tn.offline;
+    const col = sel ? '#3b82f6' : isOfflineEdge ? '#252d3d' : '#2e3a52';
 
     const line=svgEl('line');
-    line.setAttribute('class','edge-line'+(sel?' selected':''));
+    line.setAttribute('class','edge-line'+(sel?' selected':'')+(isOfflineEdge?' edge-offline':''));
     line.setAttribute('x1',fp.x); line.setAttribute('y1',fp.y);
     line.setAttribute('x2',tp.x); line.setAttribute('y2',tp.y);
     line.setAttribute('stroke',col);
@@ -1190,7 +1258,7 @@ function addNode(type,x,y,doRender=true) {
     x:x??100+Math.random()*300, y:y??100+Math.random()*200,
     w:DEF_W[type]||140, h:DEF_H[type]||60,
     name:`${pfx[type]||type}-${String(count).padStart(2,'0')}`,
-    ip:'',vlan:'',notes:'',infoTabs:[],parentId:null,tags:[]
+    ip:'', ips:[], vlan:'', notes:'', infoTabs:[], parentId:null, tags:[], offline:false
   };
   nodes.push(n); if(doRender) render(); return n;
 }
@@ -1227,7 +1295,6 @@ function deleteSelected() {
   }
   if (selectedNodes.size>0) {
     const idSet = collectDeleteSet([...selectedNodes]);
-    // Collect parent VLANs that will survive
     const parentIds = new Set(
       nodes.filter(n => idSet.has(n.id) && n.parentId && !idSet.has(n.parentId))
            .map(n => n.parentId)
@@ -1256,18 +1323,31 @@ function showCtx(e,type,id) {
   if(mode==='presentation') return;
   ctxTarget={type,id};
   const m=$('ctx-menu'); m.style.display='block';
-  const mW=m.offsetWidth||170, mH=m.offsetHeight||130;
+  const mW=m.offsetWidth||170, mH=m.offsetHeight||150;
   m.style.left=Math.min(e.clientX, window.innerWidth  - mW - 4)+'px';
   m.style.top =Math.min(e.clientY, window.innerHeight - mH - 4)+'px';
-  $('ctx-edit').style.display=type==='node'?'flex':'none';
-  $('ctx-tags').style.display=type==='node'?'flex':'none';
-  $('ctx-conn').style.display=type==='node'?'flex':'none';
+  const isNode = type==='node';
+  $('ctx-edit').style.display=isNode?'flex':'none';
+  $('ctx-tags').style.display=isNode?'flex':'none';
+  $('ctx-conn').style.display=isNode?'flex':'none';
+  $('ctx-offline').style.display=isNode?'flex':'none';
+  if (isNode) {
+    const n = nodes.find(n=>n.id===id);
+    const offlineLabel = $('ctx-offline-label');
+    if (offlineLabel) offlineLabel.textContent = n?.offline ? 'Mark Online' : 'Toggle Offline';
+  }
 }
 function hideCtx() { $('ctx-menu').style.display='none'; ctxTarget=null; }
 document.addEventListener('click',hideCtx);
-function ctxEdit() { if(ctxTarget?.type==='node') openEditModal(ctxTarget.id); hideCtx(); }
-function ctxTags() { if(ctxTarget?.type==='node') openTagModal(ctxTarget.id); hideCtx(); }
-function ctxConn() { if(ctxTarget?.type==='node'){startEdge(ctxTarget.id);setTool('edge');} hideCtx(); }
+function ctxEdit()   { if(ctxTarget?.type==='node') openEditModal(ctxTarget.id); hideCtx(); }
+function ctxTags()   { if(ctxTarget?.type==='node') openTagModal(ctxTarget.id); hideCtx(); }
+function ctxConn()   { if(ctxTarget?.type==='node'){startEdge(ctxTarget.id);setTool('edge');} hideCtx(); }
+function ctxToggleOffline() {
+  if (!ctxTarget || ctxTarget.type !== 'node') return;
+  const n = nodes.find(n=>n.id===ctxTarget.id);
+  if (n) { n.offline = !n.offline; render(); toast(n.offline ? 'Marked offline' : 'Marked online', 'info'); }
+  hideCtx();
+}
 function ctxDel()  {
   if(!ctxTarget) return;
   if(ctxTarget.type==='node') {
@@ -1289,6 +1369,75 @@ function ctxDel()  {
 }
 
 // ═══════════════════════════════════════════════════
+// MULTI-IP HELPERS
+// ═══════════════════════════════════════════════════
+function renderIpRows(ips) {
+  const container = $('f-ips-container');
+  container.innerHTML = '';
+  const list = ips.length ? ips : [''];
+  list.forEach((ip, i) => {
+    const row = document.createElement('div');
+    row.className = 'ip-row';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = i===0 ? 'e.g. 192.168.1.10/24' : 'e.g. 10.0.0.1/24';
+    input.value = ip;
+    input.maxLength = MAX_IP_LEN;
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'ip-del-btn';
+    del.textContent = '×';
+    del.title = 'Remove this IP';
+    del.onclick = () => {
+      if (container.querySelectorAll('.ip-row').length > 1) row.remove();
+      else input.value = '';
+    };
+    row.appendChild(input);
+    row.appendChild(del);
+    container.appendChild(row);
+  });
+}
+
+function addIpRow() {
+  const container = $('f-ips-container');
+  if (container.querySelectorAll('.ip-row').length >= MAX_IPS) { toast(`Max ${MAX_IPS} IPs per node`,'info'); return; }
+  const row = document.createElement('div');
+  row.className = 'ip-row';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'e.g. 10.0.0.1/24';
+  input.maxLength = MAX_IP_LEN;
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'ip-del-btn';
+  del.textContent = '×';
+  del.onclick = () => {
+    if (container.querySelectorAll('.ip-row').length > 1) row.remove();
+    else input.value = '';
+  };
+  row.appendChild(input);
+  row.appendChild(del);
+  container.appendChild(row);
+  input.focus();
+}
+
+function syncOfflineToggle(checked) {
+  const track = $('f-offline-track');
+  const thumb = $('f-offline-thumb');
+  if (checked) {
+    track.style.background = 'rgba(239,68,68,.2)';
+    track.style.borderColor = '#ef4444';
+    thumb.style.background = '#ef4444';
+    thumb.style.transform = 'translateX(18px)';
+  } else {
+    track.style.background = 'var(--bg-surface)';
+    track.style.borderColor = 'var(--border)';
+    thumb.style.background = 'var(--text-dim)';
+    thumb.style.transform = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════
 // MODAL
 // ═══════════════════════════════════════════════════
 let activeTabIdx = -1;
@@ -1298,9 +1447,17 @@ function openEditModal(id) {
   const n=nodes.find(n=>n.id===id);
   if (!n) { toast('Node no longer exists','error'); return; }
   editingId=id;
-  $('f-name').value=n.name||''; $('f-ip').value=n.ip||'';
+  $('f-name').value=n.name||'';
   $('f-vlan').value=n.vlan||''; $('f-notes').value=n.notes||'';
   $('f-type').value=n.type||'server';
+  // Multi-IP
+  const editIps = (n.ips && n.ips.length) ? [...n.ips] : (n.ip ? [n.ip] : ['']);
+  renderIpRows(editIps);
+  // Offline toggle
+  const cb = $('f-offline');
+  cb.checked = !!n.offline;
+  syncOfflineToggle(cb.checked);
+  cb.onchange = () => syncOfflineToggle(cb.checked);
   editingTabs = (n.infoTabs||[]).map(t=>({title:t.title||'',content:t.content||''}));
   activeTabIdx = editingTabs.length ? 0 : -1;
   renderTabsBar();
@@ -1362,7 +1519,11 @@ function saveModal() {
   const nt=$('f-type').value;
   const safeType = ALLOWED_TYPES.has(nt) ? nt : n.type;
   n.name=$('f-name').value.trim().slice(0,MAX_NAME_LEN)||n.name;
-  n.ip=$('f-ip').value.trim().slice(0,MAX_IP_LEN);
+  // Collect IPs
+  const ipInputs = $('f-ips-container').querySelectorAll('input');
+  n.ips = [...ipInputs].map(i=>i.value.trim().slice(0,MAX_IP_LEN)).filter(Boolean).slice(0,MAX_IPS);
+  n.ip = n.ips[0] || '';
+  n.offline = !!$('f-offline').checked;
   n.vlan=$('f-vlan').value.trim().slice(0,MAX_NAME_LEN);
   n.notes=$('f-notes').value.trim().slice(0,MAX_NOTES_LEN);
   n.infoTabs = editingTabs
@@ -1436,7 +1597,6 @@ function autoLayout() {
   vlans.forEach(v => {
     snapChildren(v.id);
     const vw = nW(v), vh = nH(v);
-    // wrap to new row if this VLAN would exceed canvas width (and we're not at start of row)
     if (x > START_X && x + vw > canvasW - START_X) {
       y += rowMaxH + V_GAP;
       x = START_X;
@@ -1451,11 +1611,9 @@ function autoLayout() {
 
   if (tops.length > 0) {
     const baseY = vlans.length > 0 ? sectionMaxY + V_GAP : 60;
-
     const cols = Math.min(5, Math.ceil(Math.sqrt(tops.length)));
     const cellW = tops.reduce((m,n)=>Math.max(m,nW(n)), 0) + H_GAP;
     const cellH = tops.reduce((m,n)=>Math.max(m,nH(n)), 0) + V_GAP;
-
     tops.forEach((n, i) => {
       const col = i % cols, row = Math.floor(i / cols);
       n.x = START_X + col * cellW;
@@ -1488,7 +1646,8 @@ function updateMinimap() {
     const r=svgEl('rect');
     r.setAttribute('x',pad+(n.x-mnX)*sc); r.setAttribute('y',pad+(n.y-mnY)*sc);
     r.setAttribute('width',Math.max(3,nW(n)*sc)); r.setAttribute('height',Math.max(2,nH(n)*sc));
-    r.setAttribute('rx',1); r.setAttribute('fill',rgba(COL[n.type]||'#3b82f6',n.type==='vlan'?0.25:0.7));
+    r.setAttribute('rx',1);
+    r.setAttribute('fill', n.offline ? 'rgba(60,64,80,0.5)' : rgba(COL[n.type]||'#3b82f6', n.type==='vlan'?0.25:0.7));
     layer.appendChild(r);
   });
 }
@@ -1500,7 +1659,8 @@ function exportJSON() {
   const blob=new Blob([JSON.stringify({version:2,name:mapName,nodes,edges},null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url;
-  a.download=(mapName.replace(/\s+/g,'-').toLowerCase()||'netmap')+'.json'; a.click();
+  const safeExportName = mapName.toLowerCase().replace(/[^a-z0-9_-]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,80) || 'netmap';
+  a.download=safeExportName+'.json'; a.click();
   setTimeout(()=>URL.revokeObjectURL(url), 100);
   toast(`Exported "${mapName}.json"`,'success');
 }
@@ -1514,12 +1674,11 @@ function validateAndSanitizeNode(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const type = ALLOWED_TYPES.has(raw.type) ? raw.type : 'other';
   const id = Number.isInteger(raw.id) && raw.id > 0 ? raw.id : null;
-  if (id === null) return null; // silently drop — caller can log if needed
+  if (id === null) return null;
   const x = typeof raw.x === 'number' && isFinite(raw.x) ? raw.x : 0;
   const y = typeof raw.y === 'number' && isFinite(raw.y) ? raw.y : 0;
   const w = typeof raw.w === 'number' && raw.w > 0 ? Math.min(raw.w, 2000) : DEF_W[type]||140;
   const h = typeof raw.h === 'number' && raw.h > 0 ? Math.min(raw.h, 2000) : DEF_H[type]||60;
-  // parentId must reference a known id — validated after full node list is built
   const parentId = typeof raw.parentId === 'number' ? raw.parentId : null;
 
   // Sanitize tags
@@ -1533,7 +1692,7 @@ function validateAndSanitizeNode(raw) {
         : []
     }));
 
-  // Sanitize infoTabs (support legacy 'info' field)
+  // Sanitize infoTabs
   let infoTabs = [];
   if (Array.isArray(raw.infoTabs)) {
     infoTabs = raw.infoTabs.slice(0, MAX_TABS).map(t => ({
@@ -1544,6 +1703,14 @@ function validateAndSanitizeNode(raw) {
     infoTabs = [{ title: 'Info', content: raw.info.slice(0, MAX_TAB_CONTENT_LEN) }];
   }
 
+  // Multi-IP: support both new 'ips' array and legacy 'ip' string
+  let ips = [];
+  if (Array.isArray(raw.ips)) {
+    ips = raw.ips.slice(0, MAX_IPS).map(v => sanitizeString(v, MAX_IP_LEN)).filter(Boolean);
+  } else if (typeof raw.ip === 'string' && raw.ip.trim()) {
+    ips = [sanitizeString(raw.ip.trim(), MAX_IP_LEN)];
+  }
+
   return {
     id,
     type,
@@ -1551,9 +1718,11 @@ function validateAndSanitizeNode(raw) {
     y: Math.max(-10000, Math.min(y, 100000)),
     w, h,
     name:  sanitizeString(raw.name  || type, MAX_NAME_LEN),
-    ip:    sanitizeString(raw.ip    || '',   MAX_IP_LEN),
+    ip:    ips[0] || '',
+    ips,
     vlan:  sanitizeString(raw.vlan  || '',   MAX_NAME_LEN),
     notes: sanitizeString(raw.notes || '',   MAX_NOTES_LEN),
+    offline: raw.offline === true,
     parentId,
     tags,
     infoTabs,
@@ -1584,18 +1753,15 @@ function handleFileImport(e) {
       if(data.nodes.length > MAX_NODES) throw new Error(`Too many nodes (max ${MAX_NODES})`);
       if(data.edges.length > MAX_EDGES) throw new Error(`Too many edges (max ${MAX_EDGES})`);
 
-      // Validate and sanitize all nodes
       const sanitizedNodes = data.nodes.map(validateAndSanitizeNode).filter(Boolean);
       const droppedNodes = data.nodes.length - sanitizedNodes.length;
       const nodeIds = new Set(sanitizedNodes.map(n => n.id));
 
-      // Resolve parentId references — must point to a real node in the import
       sanitizedNodes.forEach(n => {
         if (n.parentId !== null && !nodeIds.has(n.parentId)) n.parentId = null;
         if (n.parentId === n.id) n.parentId = null;
       });
 
-      // Validate edges (dedup by from-to pair)
       const edgePairs = new Set();
       const sanitizedEdges = data.edges
         .map(raw => validateAndSanitizeEdge(raw, nodeIds))
@@ -1654,7 +1820,6 @@ function saveTagModal() {
     const lineInputs = document.querySelectorAll(`.tag-line-input[data-tag="${ti}"]`);
     tag.lines = [...lineInputs].map(i=>i.value.trim()).filter(Boolean);
   });
-  // Enforce limits and allowlist on save
   n.tags = tagModalState
     .filter(t => ALLOWED_TAG_TYPES.has(t.type))
     .slice(0, MAX_TAGS)
@@ -1713,7 +1878,6 @@ function renderTagModal() {
     const row = document.createElement('div');
     row.className = 'tag-row';
 
-    // Header
     const header = document.createElement('div');
     header.className = 'tag-row-header';
 
@@ -1739,7 +1903,6 @@ function renderTagModal() {
     header.appendChild(delBtn);
     row.appendChild(header);
 
-    // Lines area
     const linesArea = document.createElement('div');
     linesArea.className = 'tag-lines-area';
     linesArea.id = `tag-lines-${ti}`;
@@ -1808,13 +1971,14 @@ function zoomToNode(id) {
     applyVT();
     if (t<1) requestAnimationFrame(step);
     else if (nodes.find(n=>n.id===id)) openNodeDetail(id);
-    else { savedVT=null; } // discard saved view; nothing to show
+    else { savedVT=null; }
   }
   requestAnimationFrame(step);
 }
+
 function openNodeDetail(id) {
   const n = nodes.find(n=>n.id===id); if(!n) return;
-  const col = COL[n.type]||'#3b82f6';
+  const col = n.offline ? '#6b7a96' : (COL[n.type]||'#3b82f6');
   ndActiveTab = 0;
 
   const typeBadge = $('nd-type-badge');
@@ -1824,12 +1988,34 @@ function openNodeDetail(id) {
   const nameEl = $('nd-name');
   nameEl.textContent = n.name || '—';
   nameEl.style.color = col;
+  nameEl.style.opacity = n.offline ? '0.6' : '1';
 
   const meta = $('nd-meta');
   meta.innerHTML = '';
 
+  // Offline badge in detail panel
+  if (n.offline) {
+    const badge = document.createElement('span');
+    badge.style.cssText = 'display:inline-flex;align-items:center;gap:5px;font-size:10px;color:#ef4444;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:3px 10px;margin-bottom:8px;letter-spacing:.5px;font-weight:600;';
+    badge.textContent = '⊘ OFFLINE';
+    meta.appendChild(badge);
+  }
+
+  // IPs — comma-separated on one line
+  const displayIps = (n.ips && n.ips.length) ? n.ips : (n.ip ? [n.ip] : []);
+  if (displayIps.length) {
+    const span = document.createElement('span');
+    const mk = document.createElement('span');
+    mk.className = 'mk';
+    mk.textContent = 'IP';
+    const valNode = document.createTextNode(displayIps.join(', '));
+    span.appendChild(mk);
+    span.appendChild(valNode);
+    meta.appendChild(span);
+  }
+
   const metaFields = [
-    ['IP', n.ip], ['VLAN', n.vlan], ['Note', n.notes]
+    ['VLAN', n.vlan], ['Note', n.notes]
   ];
   metaFields.forEach(([key, val]) => {
     if (!val) return;
@@ -1846,6 +2032,7 @@ function openNodeDetail(id) {
   renderNodeDetailBody(n, col);
   $('node-detail').classList.add('show');
 }
+
 function renderNodeDetailBody(n, col) {
   const body = $('nd-body');
   body.innerHTML = '';
@@ -1854,7 +2041,6 @@ function renderNodeDetailBody(n, col) {
 
   const tabLabels = ['Overview', ...tabs.map((t,i) => t.title || `Tab ${i+1}`)];
 
-  // Tab bar
   if (tabLabels.length > 1) {
     const tabBar = document.createElement('div');
     tabBar.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0;margin-bottom:4px;';
@@ -1872,16 +2058,13 @@ function renderNodeDetailBody(n, col) {
   }
 
   if (ndActiveTab === 0) {
-    // Overview tab
     if (tags.length) {
       const sec = document.createElement('div');
       sec.className = 'nd-section';
-
       const title = document.createElement('div');
       title.className = 'nd-section-title';
       title.textContent = 'Tags';
       sec.appendChild(title);
-
       tags.forEach(tag => {
         const cfg = TAG_CFG[tag.type] || {label:tag.type, color:'#888'};
         const chip = document.createElement('div');
@@ -1897,12 +2080,10 @@ function renderNodeDetailBody(n, col) {
     if (tabs.length) {
       const sec = document.createElement('div');
       sec.className = 'nd-section';
-
       const title = document.createElement('div');
       title.className = 'nd-section-title';
       title.textContent = 'Info Tabs';
       sec.appendChild(title);
-
       const chipWrap = document.createElement('div');
       chipWrap.style.cssText = 'font-size:11px;color:var(--text-sec);';
       tabs.forEach(t => {
@@ -1922,13 +2103,11 @@ function renderNodeDetailBody(n, col) {
       body.appendChild(empty);
     }
   } else {
-    // Info tab
     const tab = tabs[ndActiveTab-1];
     if (tab) {
       const sec = document.createElement('div');
       sec.className = 'nd-section';
       sec.style.flex = '1';
-
       const pre = document.createElement('pre');
       pre.className = 'nd-info-pre';
       pre.style.flex = '1';
@@ -1958,6 +2137,7 @@ function closeNodeDetail() {
   }
   requestAnimationFrame(step);
 }
+
 function renameMap() {
   $('rename-input').value = mapName;
   $('rename-modal-overlay').classList.add('show');
@@ -1979,11 +2159,11 @@ function saveRenameModal() {
   closeRenameModal();
 }
 
-// Allow Enter to confirm rename
 $('rename-input')?.addEventListener('keydown', e => {
   if (e.key === 'Enter') saveRenameModal();
   if (e.key === 'Escape') closeRenameModal();
 });
+
 let confirmModalResolve = null;
 function showConfirmModal(msg) {
   return new Promise(resolve => {
@@ -2008,17 +2188,26 @@ async function clearAll() {
 // BOOT DEMO
 // ═══════════════════════════════════════════════════
 (function demo(){
-  const fw=addNode('firewall',320,40,false); fw.name='pf-firewall'; fw.ip='10.0.0.1/24'; fw.notes='OPNsense';
-  const rt=addNode('router',100,180,false);  rt.name='core-router'; rt.ip='10.0.1.1/24';
-  const sw=addNode('switch',540,180,false);  sw.name='core-sw-01';  sw.ip='10.0.2.1/24';
+  const fw=addNode('firewall',320,40,false);
+  fw.name='pf-firewall'; fw.ips=['10.0.0.1/24','192.168.1.1/24']; fw.ip='10.0.0.1/24'; fw.notes='OPNsense';
 
-  const vl=addNode('vlan',60,330,false); vl.name='VLAN 10'; vl.ip='10.0.10.0/24'; vl.vlan='VLAN 10 — Servers';
-  const s1=addNode('server',0,0,false); s1.name='web-01';   s1.ip='10.0.10.10/24'; s1.notes='nginx';    s1.parentId=vl.id;
-  const s2=addNode('server',0,0,false); s2.name='db-01';    s2.ip='10.0.10.11/24'; s2.notes='postgres'; s2.parentId=vl.id;
-  const s3=addNode('server',0,0,false); s3.name='cache-01'; s3.ip='10.0.10.12/24'; s3.notes='redis';    s3.parentId=vl.id;
+  const rt=addNode('router',100,180,false);
+  rt.name='core-router'; rt.ips=['10.0.1.1/24']; rt.ip='10.0.1.1/24';
+
+  const sw=addNode('switch',540,180,false);
+  sw.name='core-sw-01'; sw.ips=['10.0.2.1/24']; sw.ip='10.0.2.1/24';
+
+  const vl=addNode('vlan',60,330,false);
+  vl.name='VLAN 10'; vl.ips=['10.0.10.0/24']; vl.ip='10.0.10.0/24'; vl.vlan='VLAN 10 — Servers';
+
+  const s1=addNode('server',0,0,false); s1.name='web-01';   s1.ips=['10.0.10.10/24']; s1.ip='10.0.10.10/24'; s1.notes='nginx';    s1.parentId=vl.id;
+  const s2=addNode('server',0,0,false); s2.name='db-01';    s2.ips=['10.0.10.11/24']; s2.ip='10.0.10.11/24'; s2.notes='postgres'; s2.parentId=vl.id;
+  const s3=addNode('server',0,0,false); s3.name='cache-01'; s3.ips=['10.0.10.12/24']; s3.ip='10.0.10.12/24'; s3.notes='redis';    s3.parentId=vl.id;
   snapChildren(vl.id);
 
-  const ws=addNode('workstation',540,330,false); ws.name='dev-ws-01'; ws.ip='10.0.4.20/24';
+  // Demo: one workstation shown offline, and the firewall has dual IPs
+  const ws=addNode('workstation',540,330,false);
+  ws.name='dev-ws-01'; ws.ips=['10.0.4.20/24','172.16.0.5/24']; ws.ip='10.0.4.20/24'; ws.offline=true;
 
   edges.push({id:nextId++,from:fw.id,to:rt.id});
   edges.push({id:nextId++,from:fw.id,to:sw.id});
