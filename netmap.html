@@ -238,10 +238,6 @@
   .edge-swatch:hover { transform:scale(1.18); border-color:rgba(255,255,255,.5); }
   .edge-swatch.active { border-color:#fff; box-shadow:0 0 0 2px rgba(255,255,255,.3); }
 
-  /* EDGE LABEL BADGE */
-  .edge-label-group { cursor:pointer; }
-  .edge-label-bg { rx:5; }
-
   /* EDGE DETAIL MODAL */
   #edge-modal-overlay { position:fixed; inset:0; z-index:2100; background:rgba(0,0,0,.75); display:none; align-items:center; justify-content:center; backdrop-filter:blur(2px); }
   #edge-modal-overlay.show { display:flex; }
@@ -256,6 +252,9 @@
   #edge-notes:focus { border-color:var(--accent); }
   #edge-label-input { width:100%; background:var(--bg-card); border:1px solid var(--border); border-radius:5px; color:var(--text-pri); font-family:inherit; font-size:12px; padding:8px 10px; outline:none; transition:border-color .15s; }
   #edge-label-input:focus { border-color:var(--accent); }
+  .edge-via-chip { display:flex; align-items:center; gap:6px; background:var(--bg-card); border:1px solid var(--border-hi); border-radius:5px; padding:4px 8px; font-size:11px; color:var(--text-pri); }
+  .edge-via-chip button { background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:13px; line-height:1; padding:0; }
+  .edge-via-chip button:hover { color:#ef4444; }
 </style>
 </head>
 <body>
@@ -418,6 +417,7 @@
   <div class="ctx-item" id="ctx-tags"    onclick="ctxTags()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Edit Tags</div>
   <div class="ctx-item" id="ctx-conn"    onclick="ctxConn()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>Connect From</div>
   <div class="ctx-item" id="ctx-offline" onclick="ctxToggleOffline()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span id="ctx-offline-label">Toggle Offline</span></div>
+  <div class="ctx-item" id="ctx-web-exclude" onclick="ctxToggleWebExclude()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="7" y1="7" x2="17" y2="17"/><line x1="17" y1="7" x2="7" y2="17"/></svg><span id="ctx-web-exclude-label">Exclude from Web</span></div>
   <div class="ctx-item" id="ctx-edge-edit" onclick="ctxEdgeEdit()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="15 8 19 12 15 16"/><circle cx="5" cy="12" r="2"/></svg>Edit Connection</div>
   <div class="ctx-sep"></div>
   <div class="ctx-item danger" id="ctx-del" onclick="ctxDel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>Delete</div>
@@ -440,6 +440,14 @@
         <input type="checkbox" id="f-offline" style="opacity:0;width:0;height:0;position:absolute;">
         <span id="f-offline-track" style="position:absolute;inset:0;background:var(--bg-surface);border:1px solid var(--border);border-radius:11px;transition:all .2s;"></span>
         <span id="f-offline-thumb" style="position:absolute;left:3px;top:3px;width:14px;height:14px;background:var(--text-dim);border-radius:50%;transition:all .2s;"></span>
+      </label>
+    </div>
+    <div class="form-row" style="display:flex;align-items:center;justify-content:space-between;">
+      <label for="f-web-exclude" style="margin-bottom:0;cursor:pointer;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);">Exclude from web</label>
+      <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer;flex-shrink:0;">
+        <input type="checkbox" id="f-web-exclude" style="opacity:0;width:0;height:0;position:absolute;">
+        <span id="f-web-exclude-track" style="position:absolute;inset:0;background:var(--bg-surface);border:1px solid var(--border);border-radius:11px;transition:all .2s;"></span>
+        <span id="f-web-exclude-thumb" style="position:absolute;left:3px;top:3px;width:14px;height:14px;background:var(--text-dim);border-radius:50%;transition:all .2s;"></span>
       </label>
     </div>
     <div class="form-row"><label>VLAN ID / Name</label><input type="text" id="f-vlan" placeholder="e.g. VLAN 10 — Management"/></div>
@@ -563,6 +571,14 @@
         <button class="edge-dir-btn" data-dir="backward" onclick="setEdgeDir('backward')">◀── Backward</button>
         <button class="edge-dir-btn" data-dir="both" onclick="setEdgeDir('both')">◀──▶ Both</button>
       </div>
+    </div>
+    <div class="form-row">
+      <label>Routed Via <span style="text-transform:none;font-weight:400;color:var(--text-dim);">— show this passing through another node, without a separate connection</span></label>
+      <div style="display:flex;gap:6px;">
+        <select id="edge-via-select" style="flex:1;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;color:var(--text-pri);font-family:inherit;font-size:12px;padding:7px 8px;outline:none;"></select>
+        <button type="button" class="modal-btn" style="padding:6px 14px;" onclick="addEdgeVia()">+ Add</button>
+      </div>
+      <div id="edge-via-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
     </div>
     <div class="form-row">
       <label>Notes</label>
@@ -1076,6 +1092,15 @@ function buildRegular(g,n,W,H,col,sel) {
     const nt = txt(8,'rgba(255,255,255,.28)',W/2,H-5, trunc(n.notes,22));
     nt.setAttribute('text-anchor','middle'); g.appendChild(nt);
   }
+
+  // Exclude-from-web indicator (draft mode only, so presentation stays clean)
+  if (n.excludeWeb && mode==='draft') {
+    const wb = txt(7, '#f59e0b', W-7, H-6, '\u2298 NO WEB');
+    wb.setAttribute('font-family',"'Rajdhani',sans-serif");
+    wb.setAttribute('font-weight',700); wb.setAttribute('letter-spacing',1);
+    wb.setAttribute('text-anchor','end');
+    g.appendChild(wb);
+  }
 }
 
 function renderEdges() {
@@ -1108,42 +1133,51 @@ function renderEdges() {
     const fn=nodes.find(n=>n.id===e.from), tn=nodes.find(n=>n.id===e.to);
     if (!fn||!tn) continue;
 
-    // Use nearest port on each node toward the other node's center
+    // Resolve any "routed via" waypoint nodes into center points, in order
+    const viaNodes = (e.via||[]).map(vid => nodes.find(n=>n.id===vid)).filter(Boolean);
+    const viaPts = viaNodes.map(v => ({ x: v.x+nW(v)/2, y: v.y+nH(v)/2 }));
+
+    // Use nearest port on each end node, aimed at the first/last waypoint
+    // (or the other node's center, when there's no waypoint)
     const ftcx=tn.x+nW(tn)/2, ftcy=tn.y+nH(tn)/2;
     const ffcx=fn.x+nW(fn)/2, ffcy=fn.y+nH(fn)/2;
-    const fp = nearestPort(fn, ftcx, ftcy);
-    const tp = nearestPort(tn, ffcx, ffcy);
+    const aimFromTarget = viaPts.length ? viaPts[0] : {x:ftcx,y:ftcy};
+    const aimToTarget   = viaPts.length ? viaPts[viaPts.length-1] : {x:ffcx,y:ffcy};
+    const fp = nearestPort(fn, aimFromTarget.x, aimFromTarget.y);
+    const tp = nearestPort(tn, aimToTarget.x, aimToTarget.y);
+    const pathPts = [fp, ...viaPts, tp];
+    const pointsAttr = pathPts.map(p => `${p.x},${p.y}`).join(' ');
 
     const sel = e.id===selectedEdge;
     const webHi = highlightedEdges.has(e.id) || hoverWeb.has(e.id);
     const isOfflineEdge = fn.offline || tn.offline;
     const baseColHex = isOfflineEdge ? '#252d3d' : edgeColourHex(e);
     const activeColHex = sel ? '#3b82f6' : (webHi ? edgeColourHex(e) : baseColHex);
-    const safe = activeColHex.replace('#','');
     const dir = e.direction || 'none';
     const isActive = sel || webHi;
 
     // Glow behind line (hover/select/spiderweb only — applied via JS)
-    const glow = svgEl('line');
-    glow.setAttribute('x1',fp.x); glow.setAttribute('y1',fp.y);
-    glow.setAttribute('x2',tp.x); glow.setAttribute('y2',tp.y);
+    const glow = svgEl('polyline');
+    glow.setAttribute('points', pointsAttr);
     glow.setAttribute('stroke', isActive ? activeColHex : baseColHex);
     glow.setAttribute('stroke-width', isActive ? '8' : '0');
     glow.setAttribute('stroke-opacity', isActive ? '0.22' : '0');
     glow.setAttribute('stroke-linecap','round');
+    glow.setAttribute('stroke-linejoin','round');
+    glow.setAttribute('fill','none');
     glow.setAttribute('pointer-events','none');
     layer.appendChild(glow);
 
-    const line=svgEl('line');
+    const line=svgEl('polyline');
     line.setAttribute('class','edge-line'+(sel?' selected':'')+(isOfflineEdge?' edge-offline':''));
-    line.setAttribute('x1',fp.x); line.setAttribute('y1',fp.y);
-    line.setAttribute('x2',tp.x); line.setAttribute('y2',tp.y);
+    line.setAttribute('points', pointsAttr);
     // Dim by default; brighten on active states
     line.setAttribute('stroke', isActive ? activeColHex : '#2a3548');
     line.setAttribute('stroke-width', isActive ? '2' : '1.5');
     line.setAttribute('stroke-opacity', isActive ? '1' : '0.7');
+    line.setAttribute('stroke-linejoin','round');
 
-    // Arrow markers (only when active or always if direction set)
+    // Arrow markers (start/end of the whole path, even when routed via a node)
     const arrowSafe = (isActive ? activeColHex : baseColHex).replace('#','');
     if (!isOfflineEdge) {
       if (dir === 'forward' || dir === 'both')
@@ -1153,10 +1187,9 @@ function renderEdges() {
     }
 
     // Wide transparent hit area
-    const hit=svgEl('line');
+    const hit=svgEl('polyline');
     hit.setAttribute('class','edge-hit');
-    hit.setAttribute('x1',fp.x); hit.setAttribute('y1',fp.y);
-    hit.setAttribute('x2',tp.x); hit.setAttribute('y2',tp.y);
+    hit.setAttribute('points', pointsAttr);
 
     // Hover handlers (only when not already in an active state)
     hit.addEventListener('mouseenter', () => {
@@ -1185,54 +1218,6 @@ function renderEdges() {
     }
 
     layer.appendChild(line); layer.appendChild(hit);
-
-    // Edge label — runs along the line, offset above it
-    const labelText = (e.label || '').trim();
-    if (labelText) {
-      const mx = (fp.x+tp.x)/2, my = (fp.y+tp.y)/2;
-      const dx = tp.x-fp.x, dy = tp.y-fp.y;
-      const len = Math.sqrt(dx*dx+dy*dy) || 1;
-      const angleDeg = Math.atan2(dy, dx) * 180 / Math.PI;
-      // Keep text right-side-up
-      const flip = Math.abs(angleDeg) > 90;
-      const displayAngle = flip ? angleDeg + 180 : angleDeg;
-
-      const lg = svgEl('g');
-      lg.setAttribute('class','edge-label-group');
-      lg.setAttribute('transform',`translate(${mx},${my}) rotate(${displayAngle})`);
-
-      // Background pill sitting above the line
-      const charW = 6.5, padH = 5, padV = 3;
-      const display = labelText.length > 28 ? labelText.slice(0,27)+'…' : labelText;
-      const bgW = display.length * charW + padH*2;
-      const bgH = 13;
-      const bgY = -(bgH + 5); // 5px gap above line
-
-      const lbg = svgEl('rect');
-      lbg.setAttribute('x', -bgW/2); lbg.setAttribute('y', bgY);
-      lbg.setAttribute('width', bgW); lbg.setAttribute('height', bgH);
-      lbg.setAttribute('rx', 3);
-      lbg.setAttribute('fill', '#0f1520');
-      lbg.setAttribute('stroke', isActive ? activeColHex : baseColHex);
-      lbg.setAttribute('stroke-width', '0.8');
-      lbg.setAttribute('stroke-opacity', isActive ? '1' : '0.5');
-      lg.appendChild(lbg);
-
-      const lt = txt(8, isActive ? activeColHex : 'rgba(150,170,200,0.7)', 0, bgY + bgH/2 + 3, display);
-      lt.setAttribute('text-anchor','middle');
-      lt.setAttribute('font-weight','500');
-      lt.setAttribute('letter-spacing','0.2');
-      lg.appendChild(lt);
-
-      if (mode==='draft') {
-        lg.addEventListener('mousedown', ev => ev.stopPropagation());
-        lg.addEventListener('click', ev => { ev.stopPropagation(); openEdgeModal(e.id); });
-      } else {
-        lg.style.cursor = 'pointer';
-        lg.addEventListener('click', ev => { ev.stopPropagation(); openEdgeDetail(e.id); });
-      }
-      layer.appendChild(lg);
-    }
   }
 }
 
@@ -1289,10 +1274,14 @@ function computeWebEdges(startIds) {
 
   // BFS from the start node(s), following the whole reachable network — i.e.
   // those nodes' connections, and the connections of everything they reach.
+  // A node flagged excludeWeb acts as a wall: the trail can arrive at it
+  // (the edge leading in still lights up) but never continues past it.
   const visited = new Set(startIds);
   const queue = [...startIds];
   while (queue.length) {
     const cur = queue.shift();
+    const curNode = nodes.find(nn => nn.id === cur);
+    if (curNode && curNode.excludeWeb) continue;
     for (const { to, edgeId } of (adj.get(cur) || [])) {
       if (edgeId !== null) result.add(edgeId);
       if (!visited.has(to)) { visited.add(to); queue.push(to); }
@@ -1530,7 +1519,7 @@ function completeEdge(id) {
   if (edgeStart===null||edgeStart===id){cancelEdge();return;}
   if (!nodes.find(n=>n.id===edgeStart)) { cancelEdge(); return; }
   const dup=edges.some(e=>(e.from===edgeStart&&e.to===id)||(e.from===id&&e.to===edgeStart));
-  if(!dup){edges.push({id:nextId++,from:edgeStart,to:id,colour:'default',direction:'none',label:'',notes:''});toast('Connected','success');}
+  if(!dup){edges.push({id:nextId++,from:edgeStart,to:id,colour:'default',direction:'none',label:'',notes:'',via:[]});toast('Connected','success');}
   cancelEdge(); render();
 }
 
@@ -1551,7 +1540,7 @@ function addNode(type,x,y,doRender=true) {
     x:x??100+Math.random()*300, y:y??100+Math.random()*200,
     w:DEF_W[type]||140, h:DEF_H[type]||60,
     name:`${pfx[type]||type}-${String(count).padStart(2,'0')}`,
-    ip:'', ips:[], vlan:'', notes:'', infoTabs:[], parentId:null, tags:[], offline:false
+    ip:'', ips:[], vlan:'', notes:'', infoTabs:[], parentId:null, tags:[], offline:false, excludeWeb:false
   };
   nodes.push(n); if(doRender) render(); return n;
 }
@@ -1594,6 +1583,7 @@ function deleteSelected() {
     );
     nodes = nodes.filter(n => !idSet.has(n.id));
     edges = edges.filter(e => !idSet.has(e.from) && !idSet.has(e.to));
+    edges.forEach(e => { if (Array.isArray(e.via)) e.via = e.via.filter(v=>!idSet.has(v)); });
     parentIds.forEach(vid => { if (nodes.find(n => n.id===vid)) snapChildren(vid); });
     if (selectedEdge !== null && !edges.some(e => e.id === selectedEdge)) selectedEdge = null;
     selectedNodes.clear();
@@ -1625,11 +1615,14 @@ function showCtx(e,type,id) {
   $('ctx-tags').style.display=isNode?'flex':'none';
   $('ctx-conn').style.display=isNode?'flex':'none';
   $('ctx-offline').style.display=isNode?'flex':'none';
+  $('ctx-web-exclude').style.display=isNode?'flex':'none';
   $('ctx-edge-edit').style.display=isEdge?'flex':'none';
   if (isNode) {
     const n = nodes.find(n=>n.id===id);
     const offlineLabel = $('ctx-offline-label');
     if (offlineLabel) offlineLabel.textContent = n?.offline ? 'Mark Online' : 'Toggle Offline';
+    const webLabel = $('ctx-web-exclude-label');
+    if (webLabel) webLabel.textContent = n?.excludeWeb ? 'Include in Web' : 'Exclude from Web';
   }
 }
 function hideCtx() { $('ctx-menu').style.display='none'; ctxTarget=null; }
@@ -1644,6 +1637,17 @@ function ctxToggleOffline() {
   if (n) { n.offline = !n.offline; render(); toast(n.offline ? 'Marked offline' : 'Marked online', 'info'); }
   hideCtx();
 }
+function ctxToggleWebExclude() {
+  if (!ctxTarget || ctxTarget.type !== 'node') return;
+  const n = nodes.find(n=>n.id===ctxTarget.id);
+  if (n) {
+    n.excludeWeb = !n.excludeWeb;
+    if (selectedNodes.size) updateSpiderweb();
+    render();
+    toast(n.excludeWeb ? 'Excluded from web' : 'Included in web', 'info');
+  }
+  hideCtx();
+}
 function ctxDel()  {
   if(!ctxTarget) return;
   if(ctxTarget.type==='node') {
@@ -1652,6 +1656,7 @@ function ctxDel()  {
     const idSet = collectDeleteSet([ctxTarget.id]);
     nodes = nodes.filter(n => !idSet.has(n.id));
     edges = edges.filter(e => !idSet.has(e.from) && !idSet.has(e.to));
+    edges.forEach(e => { if (Array.isArray(e.via)) e.via = e.via.filter(v=>!idSet.has(v)); });
     if (selectedEdge !== null && !edges.some(e => e.id === selectedEdge)) selectedEdge = null;
     if (parentId && nodes.find(n => n.id===parentId)) snapChildren(parentId);
     selectedNodes.clear();
@@ -1733,6 +1738,22 @@ function syncOfflineToggle(checked) {
   }
 }
 
+function syncWebExcludeToggle(checked) {
+  const track = $('f-web-exclude-track');
+  const thumb = $('f-web-exclude-thumb');
+  if (checked) {
+    track.style.background = 'rgba(245,158,11,.2)';
+    track.style.borderColor = '#f59e0b';
+    thumb.style.background = '#f59e0b';
+    thumb.style.transform = 'translateX(18px)';
+  } else {
+    track.style.background = 'var(--bg-surface)';
+    track.style.borderColor = 'var(--border)';
+    thumb.style.background = 'var(--text-dim)';
+    thumb.style.transform = 'none';
+  }
+}
+
 // ═══════════════════════════════════════════════════
 // MODAL
 // ═══════════════════════════════════════════════════
@@ -1754,6 +1775,11 @@ function openEditModal(id) {
   cb.checked = !!n.offline;
   syncOfflineToggle(cb.checked);
   cb.onchange = () => syncOfflineToggle(cb.checked);
+  // Exclude-from-web toggle
+  const webCb = $('f-web-exclude');
+  webCb.checked = !!n.excludeWeb;
+  syncWebExcludeToggle(webCb.checked);
+  webCb.onchange = () => syncWebExcludeToggle(webCb.checked);
   editingTabs = (n.infoTabs||[]).map(t=>({title:t.title||'',content:t.content||''}));
   activeTabIdx = editingTabs.length ? 0 : -1;
   renderTabsBar();
@@ -1820,6 +1846,7 @@ function saveModal() {
   n.ips = [...ipInputs].map(i=>i.value.trim().slice(0,MAX_IP_LEN)).filter(Boolean).slice(0,MAX_IPS);
   n.ip = n.ips[0] || '';
   n.offline = !!$('f-offline').checked;
+  n.excludeWeb = !!$('f-web-exclude').checked;
   n.vlan=$('f-vlan').value.trim().slice(0,MAX_NAME_LEN);
   n.notes=$('f-notes').value.trim().slice(0,MAX_NOTES_LEN);
   n.infoTabs = editingTabs
@@ -1828,6 +1855,7 @@ function saveModal() {
     .map(t=>({title:t.title.trim().slice(0,MAX_NAME_LEN)||'Info', content:t.content.slice(0,MAX_TAB_CONTENT_LEN)}));
   if(safeType!==n.type){n.type=safeType;n.w=DEF_W[safeType];n.h=DEF_H[safeType];}
   if(n.parentId) snapChildren(n.parentId);
+  if (selectedNodes.size) updateSpiderweb();
   closeModal(); render(); toast('Saved','success');
 }
 
@@ -2019,6 +2047,7 @@ function validateAndSanitizeNode(raw) {
     vlan:  sanitizeString(raw.vlan  || '',   MAX_NAME_LEN),
     notes: sanitizeString(raw.notes || '',   MAX_NOTES_LEN),
     offline: raw.offline === true,
+    excludeWeb: raw.excludeWeb === true,
     parentId,
     tags,
     infoTabs,
@@ -2033,12 +2062,21 @@ function validateAndSanitizeEdge(raw, nodeIds) {
   if (id === null || from === null || to === null || from === to) return null;
   const validColours = new Set(EDGE_COLOURS.map(c=>c.id));
   const validDirs = new Set(['none','forward','backward','both']);
+  // "Routed via" waypoints: valid node ids, not the endpoints, no duplicates
+  let via = [];
+  if (Array.isArray(raw.via)) {
+    const seen = new Set();
+    via = raw.via.filter(v =>
+      Number.isInteger(v) && nodeIds.has(v) && v !== from && v !== to && !seen.has(v) && seen.add(v)
+    ).slice(0, 5);
+  }
   return {
     id, from, to,
     colour:    validColours.has(raw.colour)    ? raw.colour    : 'default',
     direction: validDirs.has(raw.direction)    ? raw.direction : 'none',
     label:     sanitizeString(raw.label  || '', 40),
     notes:     sanitizeString(raw.notes  || '', 1000),
+    via,
   };
 }
 
@@ -2251,18 +2289,88 @@ function renderTagModal() {
 // ═══════════════════════════════════════════════════
 let edgeEditingId = null;
 let edgeModalDir = 'none';
+let edgeModalVia = [];
 
 function openEdgeModal(id) {
   const e = edges.find(e=>e.id===id);
   if (!e) { toast('Connection no longer exists','error'); return; }
   edgeEditingId = id;
   edgeModalDir = e.direction || 'none';
+  edgeModalVia = Array.isArray(e.via) ? [...e.via] : [];
   $('edge-label-input').value = e.label || '';
   $('edge-notes').value = e.notes || '';
   renderEdgeColourPicker(e.colour || 'default');
   renderEdgeDirBtns();
+  renderEdgeViaSelect(e);
+  renderEdgeViaChips();
   $('edge-modal-overlay').classList.add('show');
   $('edge-label-input').focus();
+}
+
+function renderEdgeViaSelect(e) {
+  const sel = $('edge-via-select');
+  sel.innerHTML = '';
+  const candidates = nodes.filter(n =>
+    n.id !== e.from && n.id !== e.to && n.type !== 'vlan' && !edgeModalVia.includes(n.id)
+  );
+  if (!candidates.length) {
+    const opt = document.createElement('option');
+    opt.textContent = 'No other nodes available';
+    opt.disabled = true;
+    sel.appendChild(opt);
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+  candidates.forEach(n => {
+    const opt = document.createElement('option');
+    opt.value = n.id;
+    opt.textContent = n.name || `Node ${n.id}`;
+    sel.appendChild(opt);
+  });
+}
+
+function addEdgeVia() {
+  const sel = $('edge-via-select');
+  if (sel.disabled || !sel.value) return;
+  const id = Number(sel.value);
+  if (!edgeModalVia.includes(id) && edgeModalVia.length < 5) edgeModalVia.push(id);
+  const e = edges.find(e=>e.id===edgeEditingId) || {from:null,to:null};
+  renderEdgeViaSelect(e);
+  renderEdgeViaChips();
+}
+
+function removeEdgeVia(id) {
+  edgeModalVia = edgeModalVia.filter(v => v !== id);
+  const e = edges.find(e=>e.id===edgeEditingId) || {from:null,to:null};
+  renderEdgeViaSelect(e);
+  renderEdgeViaChips();
+}
+
+function renderEdgeViaChips() {
+  const wrap = $('edge-via-chips');
+  wrap.innerHTML = '';
+  if (!edgeModalVia.length) {
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:11px;color:var(--text-dim);';
+    hint.textContent = 'Direct connection — no waypoints added.';
+    wrap.appendChild(hint);
+    return;
+  }
+  edgeModalVia.forEach((id, i) => {
+    const n = nodes.find(n=>n.id===id);
+    const chip = document.createElement('div');
+    chip.className = 'edge-via-chip';
+    const label = document.createElement('span');
+    label.textContent = `${i+1}. ${n ? (n.name||'Node') : 'Deleted node'}`;
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.textContent = '\u2715';
+    rm.title = 'Remove waypoint';
+    rm.onclick = () => removeEdgeVia(id);
+    chip.appendChild(label); chip.appendChild(rm);
+    wrap.appendChild(chip);
+  });
 }
 
 function renderEdgeColourPicker(activeId) {
@@ -2296,6 +2404,7 @@ function setEdgeDir(dir) {
 function closeEdgeModal() {
   $('edge-modal-overlay').classList.remove('show');
   edgeEditingId = null;
+  edgeModalVia = [];
 }
 
 function saveEdgeModal() {
@@ -2307,6 +2416,7 @@ function saveEdgeModal() {
   e.direction = edgeModalDir;
   e.label     = $('edge-label-input').value.trim().slice(0, 40);
   e.notes     = $('edge-notes').value.trim().slice(0, 1000);
+  e.via       = [...edgeModalVia];
   closeEdgeModal();
   render();
   toast('Connection saved','success');
@@ -2466,7 +2576,41 @@ function renderNodeDetailBody(n, col) {
       body.appendChild(sec);
     }
 
-    if (!tags.length && !tabs.length) {
+    const nodeEdges = edges.filter(e => e.from===n.id || e.to===n.id);
+    if (nodeEdges.length) {
+      const sec = document.createElement('div');
+      sec.className = 'nd-section';
+      const title = document.createElement('div');
+      title.className = 'nd-section-title';
+      title.textContent = 'Connections';
+      sec.appendChild(title);
+      nodeEdges.forEach(e => {
+        const otherId = e.from===n.id ? e.to : e.from;
+        const other = nodes.find(nn=>nn.id===otherId);
+        if (!other) return;
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:11px;cursor:pointer;';
+        const dot = document.createElement('span');
+        dot.style.cssText = `width:8px;height:8px;border-radius:50%;background:${edgeColourHex(e)};flex-shrink:0;`;
+        row.appendChild(dot);
+        const arrowFor = { none:'\u2014', forward: e.from===n.id?'\u2192':'\u2190', backward: e.from===n.id?'\u2190':'\u2192', both:'\u2194' };
+        const text = document.createElement('span');
+        text.style.cssText = 'color:var(--text-pri);flex:1;';
+        text.textContent = `${arrowFor[e.direction||'none']} ${other.name}`;
+        row.appendChild(text);
+        if (e.label && e.label.trim()) {
+          const lbl = document.createElement('span');
+          lbl.style.cssText = 'color:var(--text-sec);font-style:italic;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+          lbl.textContent = e.label;
+          row.appendChild(lbl);
+        }
+        row.addEventListener('click', ev => { ev.stopPropagation(); openEdgeDetail(e.id); });
+        sec.appendChild(row);
+      });
+      body.appendChild(sec);
+    }
+
+    if (!tags.length && !tabs.length && !nodeEdges.length) {
       const empty = document.createElement('div');
       empty.style.cssText = 'font-size:11px;color:var(--text-dim);text-align:center;padding:40px 0;';
       empty.textContent = 'No additional information. Add it via Edit Properties in draft mode.';
@@ -2527,6 +2671,10 @@ function openEdgeDetail(id) {
   addMeta('From', fn.name);
   addMeta('To', tn.name);
   addMeta('Flow', dirLabel);
+  if (Array.isArray(e.via) && e.via.length) {
+    const viaNames = e.via.map(id => nodes.find(n=>n.id===id)?.name).filter(Boolean);
+    if (viaNames.length) addMeta('Via', viaNames.join(' \u2192 '));
+  }
 
   renderEdgeDetailBody(e);
   $('node-detail').classList.add('show');
@@ -2640,11 +2788,11 @@ async function clearAll() {
   const ws=addNode('workstation',540,330,false);
   ws.name='dev-ws-01'; ws.ips=['10.0.4.20/24','172.16.0.5/24']; ws.ip='10.0.4.20/24'; ws.offline=true;
 
-  edges.push({id:nextId++,from:fw.id,to:rt.id,colour:'default',direction:'both',label:'',notes:''});
-  edges.push({id:nextId++,from:fw.id,to:sw.id,colour:'default',direction:'both',label:'',notes:''});
-  edges.push({id:nextId++,from:rt.id,to:vl.id,colour:'green',direction:'forward',label:'VLAN 10',notes:''});
-  edges.push({id:nextId++,from:sw.id,to:ws.id,colour:'default',direction:'none',label:'',notes:''});
-  edges.push({id:nextId++,from:rt.id,to:sw.id,colour:'cyan',direction:'both',label:'Trunk',notes:''});
+  edges.push({id:nextId++,from:fw.id,to:rt.id,colour:'default',direction:'both',label:'',notes:'',via:[]});
+  edges.push({id:nextId++,from:fw.id,to:sw.id,colour:'default',direction:'both',label:'',notes:'',via:[]});
+  edges.push({id:nextId++,from:rt.id,to:vl.id,colour:'green',direction:'forward',label:'VLAN 10',notes:'',via:[]});
+  edges.push({id:nextId++,from:sw.id,to:ws.id,colour:'default',direction:'none',label:'',notes:'',via:[]});
+  edges.push({id:nextId++,from:rt.id,to:sw.id,colour:'cyan',direction:'both',label:'Trunk',notes:'',via:[]});
 
   render(); fitToScreen();
 })();
