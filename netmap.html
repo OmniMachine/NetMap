@@ -52,8 +52,11 @@
   #workspace { display:flex; flex:1; overflow:hidden; }
 
   /* SIDEBAR */
-  #sidebar { width:220px; flex-shrink:0; background:var(--bg-panel); border-right:1px solid var(--border); display:flex; flex-direction:column; transition:width .2s,opacity .2s; overflow:hidden; }
-  #sidebar.hidden { width:0; opacity:0; pointer-events:none; }
+  #sidebar { width:220px; flex-shrink:0; background:var(--bg-panel); border-right:1px solid var(--border); display:flex; flex-direction:column; transition:width .2s,opacity .2s; overflow-y:auto; overflow-x:hidden; }
+  #sidebar.hidden { width:0; opacity:0; pointer-events:none; overflow:hidden; }
+  #sidebar::-webkit-scrollbar { width:4px; }
+  #sidebar::-webkit-scrollbar-track { background:transparent; }
+  #sidebar::-webkit-scrollbar-thumb { background:var(--border-hi); border-radius:2px; }
   .sidebar-section { padding:12px 14px 8px; border-bottom:1px solid var(--border); }
   .sidebar-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); margin-bottom:10px; font-weight:600; }
   .node-palette { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
@@ -273,6 +276,13 @@
     <div id="map-name-display" title="Click to rename" onclick="renameMap()">Untitled Topology</div>
     <div class="tb-spacer"></div>
     <div id="tb-right">
+      <button class="tb-btn" onclick="undo()" title="Undo (Ctrl+Z)" style="padding:0 10px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10a5 5 0 010 10h-2"/><polyline points="7 6 3 10 7 14"/></svg>
+      </button>
+      <button class="tb-btn" onclick="redo()" title="Redo (Ctrl+Y)" style="padding:0 10px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10H11a5 5 0 000 10h2"/><polyline points="17 6 21 10 17 14"/></svg>
+      </button>
+      <div class="tb-sep"></div>
       <button class="tb-btn" onclick="importJSON()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import
       </button>
@@ -307,6 +317,12 @@
           </div>
           <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'vlan')">
             <div class="palette-icon" style="background:rgba(168,85,247,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="3" stroke-dasharray="4,2"/></svg></div>VLAN
+          </div>
+          <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'site')">
+            <div class="palette-icon" style="background:rgba(234,179,8,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="3" stroke-dasharray="4,2"/><path d="M12 8.5c-1.8 0-3.2 1.4-3.2 3.1 0 2.3 3.2 5.4 3.2 5.4s3.2-3.1 3.2-5.4c0-1.7-1.4-3.1-3.2-3.1z"/><circle cx="12" cy="11.6" r="1.1"/></svg></div>Site
+          </div>
+          <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'group')">
+            <div class="palette-icon" style="background:rgba(45,212,191,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="3" stroke-dasharray="4,2"/><rect x="7" y="8.5" width="5.5" height="5.5" rx="1"/><rect x="12.5" y="12" width="5.5" height="5.5" rx="1"/></svg></div>Group
           </div>
           <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'modem')">
             <div class="palette-icon" style="background:rgba(236,72,153,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="1.5"><rect x="2" y="8" width="20" height="13" rx="2"/><line x1="7" y1="8" x2="6" y2="4" stroke-linecap="round"/><line x1="12" y1="8" x2="12" y2="3" stroke-linecap="round"/><line x1="17" y1="8" x2="18" y2="4" stroke-linecap="round"/><circle cx="7" cy="15" r="1.5" fill="#ec4899"/><circle cx="12" cy="15" r="1.5" fill="#ec4899"/><circle cx="17" cy="15" r="1.5" fill="#ec4899"/></svg></div>Modem
@@ -373,8 +389,9 @@
           </marker>
         </defs>
         <g id="canvas-root">
+          <g id="containers-layer"></g>
           <g id="edges-layer"></g>
-          <g id="nodes-layer"></g>
+          <g id="leaves-layer"></g>
         </g>
       </svg>
       <div id="edge-hint">Click source node · then click target to connect · Esc to cancel</div>
@@ -391,6 +408,8 @@
         <div class="legend-item"><div class="legend-dot" style="background:#64748b"></div>Camera</div>
         <div class="legend-item"><div class="legend-dot" style="background:#78716c"></div>Other</div>
         <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div>VLAN</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#eab308"></div>Site</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#2dd4bf"></div>Group</div>
       </div>
       <div id="zoom-ctrl">
         <button class="zoom-btn" onclick="zoomIn()">+</button>
@@ -418,6 +437,7 @@
   <div class="ctx-item" id="ctx-conn"    onclick="ctxConn()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>Connect From</div>
   <div class="ctx-item" id="ctx-offline" onclick="ctxToggleOffline()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span id="ctx-offline-label">Toggle Offline</span></div>
   <div class="ctx-item" id="ctx-web-exclude" onclick="ctxToggleWebExclude()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="7" y1="7" x2="17" y2="17"/><line x1="17" y1="7" x2="7" y2="17"/></svg><span id="ctx-web-exclude-label">Exclude from Web</span></div>
+  <div class="ctx-item" id="ctx-layout" onclick="ctxToggleLayout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><path d="M10 6.5h4a2 2 0 012 2v6" stroke-dasharray="2,1.5"/></svg><span id="ctx-layout-label">Switch to Free Layout</span></div>
   <div class="ctx-item" id="ctx-edge-edit" onclick="ctxEdgeEdit()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="15 8 19 12 15 16"/><circle cx="5" cy="12" r="2"/></svg>Edit Connection</div>
   <div class="ctx-sep"></div>
   <div class="ctx-item danger" id="ctx-del" onclick="ctxDel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>Delete</div>
@@ -426,7 +446,13 @@
 <div id="modal-overlay">
   <div id="modal">
     <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Node Properties</h3>
-    <div class="form-row"><label>Hostname / Label</label><input type="text" id="f-name" placeholder="e.g. web-server-01"/></div>
+    <div class="form-row">
+      <label style="display:flex;align-items:center;justify-content:space-between;">
+        Hostname / Label(s)
+        <button type="button" class="ip-add-btn" onclick="addNameRow()">+ Add Name</button>
+      </label>
+      <div id="f-names-container"></div>
+    </div>
     <div class="form-row">
       <label style="display:flex;align-items:center;justify-content:space-between;">
         IP Address(es)
@@ -448,6 +474,14 @@
         <input type="checkbox" id="f-web-exclude" style="opacity:0;width:0;height:0;position:absolute;">
         <span id="f-web-exclude-track" style="position:absolute;inset:0;background:var(--bg-surface);border:1px solid var(--border);border-radius:11px;transition:all .2s;"></span>
         <span id="f-web-exclude-thumb" style="position:absolute;left:3px;top:3px;width:14px;height:14px;background:var(--text-dim);border-radius:50%;transition:all .2s;"></span>
+      </label>
+    </div>
+    <div class="form-row" id="f-layout-row" style="display:none;align-items:center;justify-content:space-between;">
+      <label for="f-layout" style="margin-bottom:0;cursor:pointer;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);">Free layout <span style="text-transform:none;font-weight:400;">— let nodes be spaced out freely</span></label>
+      <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer;flex-shrink:0;">
+        <input type="checkbox" id="f-layout" style="opacity:0;width:0;height:0;position:absolute;">
+        <span id="f-layout-track" style="position:absolute;inset:0;background:var(--bg-surface);border:1px solid var(--border);border-radius:11px;transition:all .2s;"></span>
+        <span id="f-layout-thumb" style="position:absolute;left:3px;top:3px;width:14px;height:14px;background:var(--text-dim);border-radius:50%;transition:all .2s;"></span>
       </label>
     </div>
     <div class="form-row"><label>VLAN ID / Name</label><input type="text" id="f-vlan" placeholder="e.g. VLAN 10 — Management"/></div>
@@ -476,6 +510,8 @@
         <option value="modem">Modem</option><option value="wap">WAP</option>
         <option value="camera">Camera</option><option value="other">Other Device</option>
         <option value="vlan">VLAN</option>
+        <option value="site">Site</option>
+        <option value="group">Group</option>
       </select>
     </div>
     <div class="modal-actions">
@@ -584,6 +620,22 @@
       <label>Notes</label>
       <textarea id="edge-notes" placeholder="Protocol, port, traffic type, observations…" maxlength="1000"></textarea>
     </div>
+    <div class="form-row" style="flex-direction:column;gap:6px;">
+      <label style="display:flex;align-items:center;justify-content:space-between;">
+        Additional Info Tabs
+        <button onclick="addEdgeInfoTab()" style="font-size:10px;padding:2px 8px;background:var(--bg-card);border:1px solid var(--border-hi);color:var(--accent2);border-radius:4px;cursor:pointer;">+ Add Tab</button>
+      </label>
+      <div id="edge-tabs-bar" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+      <div id="edge-tab-editor" style="display:none;flex-direction:column;gap:6px;">
+        <input id="edge-tab-title" type="text" placeholder="Tab title e.g. Ports, Protocol, Observations…"
+          style="background:var(--bg-card);border:1px solid var(--border);border-radius:5px;color:var(--text-pri);font-size:12px;padding:6px 10px;outline:none;"/>
+        <textarea id="edge-tab-content" rows="7"
+          style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;color:var(--text-pri);font-family:'JetBrains Mono',monospace;font-size:11px;padding:8px 10px;outline:none;resize:vertical;line-height:1.6;"
+          placeholder="Free-form — paste packet captures, port lists, observations…"></textarea>
+        <button onclick="deleteActiveEdgeInfoTab()" style="align-self:flex-start;font-size:10px;padding:2px 8px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#ef4444;border-radius:4px;cursor:pointer;">✕ Delete tab</button>
+      </div>
+      <div id="edge-tabs-empty" style="font-size:11px;color:var(--text-dim);padding:8px 0;">No info tabs yet — click "+ Add Tab" to create one.</div>
+    </div>
     <div class="modal-actions">
       <button class="modal-btn" onclick="closeEdgeModal()">Cancel</button>
       <button class="modal-btn primary" onclick="saveEdgeModal()">Save</button>
@@ -595,14 +647,14 @@
 // ═══════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════
-const ALLOWED_TYPES = new Set(['server','workstation','router','switch','firewall','vlan','modem','gateway','wap','camera','other']);
+const ALLOWED_TYPES = new Set(['server','workstation','router','switch','firewall','vlan','modem','gateway','wap','camera','other','site','group']);
 const ALLOWED_TAG_TYPES = new Set(['implant','av']);
 
-const COL = { server:'#3b82f6', workstation:'#10b981', router:'#f59e0b', switch:'#22d3ee', firewall:'#ef4444', vlan:'#a855f7', modem:'#ec4899', gateway:'#fb923c', wap:'#6366f1', camera:'#64748b', other:'#78716c' };
-const DEF_W = { server:140, workstation:140, router:140, switch:140, firewall:140, vlan:164, modem:140, gateway:140, wap:140, camera:140, other:140 };
-const DEF_H = { server:60,  workstation:60,  router:60,  switch:60,  firewall:60,  vlan:200, modem:60,  gateway:60,  wap:60,  camera:60,  other:60  };
-const MIN_W = { server:100, workstation:100, router:100, switch:100, firewall:100, vlan:164, modem:100, gateway:100, wap:100, camera:100, other:100 };
-const MIN_H = { server:48,  workstation:48,  router:48,  switch:48,  firewall:48,  vlan:100, modem:48,  gateway:48,  wap:48,  camera:48,  other:48  };
+const COL = { server:'#3b82f6', workstation:'#10b981', router:'#f59e0b', switch:'#22d3ee', firewall:'#ef4444', vlan:'#a855f7', modem:'#ec4899', gateway:'#fb923c', wap:'#6366f1', camera:'#64748b', other:'#78716c', site:'#eab308', group:'#2dd4bf' };
+const DEF_W = { server:140, workstation:140, router:140, switch:140, firewall:140, vlan:164, modem:140, gateway:140, wap:140, camera:140, other:140, site:164, group:164 };
+const DEF_H = { server:60,  workstation:60,  router:60,  switch:60,  firewall:60,  vlan:200, modem:60,  gateway:60,  wap:60,  camera:60,  other:60,  site:200, group:200 };
+const MIN_W = { server:100, workstation:100, router:100, switch:100, firewall:100, vlan:164, modem:100, gateway:100, wap:100, camera:100, other:100, site:164, group:164 };
+const MIN_H = { server:48,  workstation:48,  router:48,  switch:48,  firewall:48,  vlan:100, modem:48,  gateway:48,  wap:48,  camera:48,  other:48,  site:100, group:100 };
 
 // Import limits
 const MAX_NODES = 2000;
@@ -616,6 +668,10 @@ const MAX_TAGS = 10;
 const MAX_TAG_LINES = 20;
 const MAX_TAG_LINE_LEN = 200;
 const MAX_IPS = 8;
+const MAX_NAMES = 5;
+
+// Container node types (support holding child nodes via parentId)
+const CONTAINER_TYPES = new Set(['vlan','site','group']);
 
 // VLAN child layout constants
 const VH_TOP  = 38;
@@ -636,6 +692,8 @@ const ICONS = {
   wap:         `<path d="M8 9.5a2 2 0 110 .01" stroke-width="1.2" fill="COL"/><path d="M4.5 7a5 5 0 017 0" stroke-width="1.2" stroke-linecap="round"/><path d="M2 4.5a8.5 8.5 0 0112 0" stroke-width="1.2" stroke-linecap="round"/><line x1="8" y1="11.5" x2="8" y2="15" stroke-width="1.2" stroke-linecap="round"/><line x1="5" y1="15" x2="11" y2="15" stroke-width="1.2" stroke-linecap="round"/>`,
   camera:      `<path d="M1 5.5h10a1 1 0 011 1v6a1 1 0 01-1 1H1a1 1 0 01-1-1v-6a1 1 0 011-1z" stroke-width="1.2"/><path d="M12 7.5l3-2v6l-3-2z" stroke-width="1.2" stroke-linejoin="round"/><circle cx="5.5" cy="9" r="2" stroke-width="1.2"/>`,
   other:       `<rect x="1" y="4" width="14" height="10" rx="2" stroke-width="1.2"/><line x1="4" y1="9" x2="4.01" y2="9" stroke-width="2.5" stroke-linecap="round"/><line x1="8" y1="9" x2="8.01" y2="9" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="9" x2="12.01" y2="9" stroke-width="2.5" stroke-linecap="round"/>`,
+  site:        `<path d="M8 1c-3 0-5.5 2.4-5.5 5.4C2.5 10.5 8 15 8 15s5.5-4.5 5.5-8.6C13.5 3.4 11 1 8 1z" stroke-width="1.2"/><circle cx="8" cy="6.3" r="2" stroke-width="1.2"/>`,
+  group:       `<rect x="1" y="1" width="9" height="9" rx="1.5" stroke-width="1.2"/><rect x="6" y="6" width="9" height="9" rx="1.5" stroke-width="1.2"/>`,
 };
 
 // EDGE COLOURS
@@ -670,6 +728,71 @@ let edgeStart = null;
 let selectedNodes = new Set(), selectedEdge = null, highlightedEdges = new Set(), hoverWeb = new Set();
 let ctxTarget = null, editingId = null;
 let vlanDropHi = null;
+
+// ═══════════════════════════════════════════════════
+// UNDO / REDO
+// ═══════════════════════════════════════════════════
+let undoStack = [];
+let redoStack = [];
+const MAX_UNDO = 50;
+
+function snapshotState() {
+  return JSON.stringify({ nodes, edges, mapName, nextId });
+}
+
+function restoreState(snap) {
+  const data = JSON.parse(snap);
+  nodes = data.nodes;
+  edges = data.edges;
+  mapName = data.mapName;
+  nextId = data.nextId;
+}
+
+// Call BEFORE mutating state, for actions that are a single deliberate
+// commit (deletes, modal saves, toggles, etc). Continuous interactions
+// like drag/resize instead capture a snapshot at the start and only push
+// it in pushUndoIfChanged, once we know something actually moved.
+function pushUndo() {
+  undoStack.push(snapshotState());
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack = [];
+}
+
+// For drag/resize: pass the snapshot captured before the interaction
+// began; only pushed onto the undo stack if the state actually changed,
+// so a click that didn't move anything doesn't clutter the history.
+function pushUndoIfChanged(beforeSnap) {
+  if (beforeSnap == null) return;
+  if (beforeSnap === snapshotState()) return;
+  undoStack.push(beforeSnap);
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack = [];
+}
+
+function resetTransientUiState() {
+  selectedNodes.clear(); selectedEdge = null; highlightedEdges.clear(); hoverWeb.clear();
+  closeModal(); closeEdgeModal(); closeTagModal(); closeNodeDetail(); hideCtx();
+  cancelEdge();
+  $('map-name-display').textContent = mapName;
+}
+
+function undo() {
+  if (!undoStack.length) { toast('Nothing to undo','info'); return; }
+  redoStack.push(snapshotState());
+  restoreState(undoStack.pop());
+  resetTransientUiState();
+  render();
+  toast('Undo','info');
+}
+
+function redo() {
+  if (!redoStack.length) { toast('Nothing to redo','info'); return; }
+  undoStack.push(snapshotState());
+  restoreState(redoStack.pop());
+  resetTransientUiState();
+  render();
+  toast('Redo','info');
+}
 
 // ═══════════════════════════════════════════════════
 // UTILS
@@ -737,6 +860,28 @@ function nearestPort(n, tx, ty) {
 // ═══════════════════════════════════════════════════
 function getChildren(vid) { return nodes.filter(n=>n.parentId===vid); }
 
+// All ids nested anywhere beneath vid (children, grandchildren, ...)
+function getDescendantIds(vid) {
+  const result = new Set();
+  const queue = [vid];
+  while (queue.length) {
+    const cur = queue.shift();
+    getChildren(cur).forEach(c => { if (!result.has(c.id)) { result.add(c.id); queue.push(c.id); } });
+  }
+  return result;
+}
+
+// Rigidly shift every descendant of id by the same delta — used whenever a
+// container's own position changes (dragged, or repositioned by ITS parent's
+// layout), so nested containers carry their own contents along with them.
+function shiftDescendants(id, ddx, ddy) {
+  if (!ddx && !ddy) return;
+  getChildren(id).forEach(c => {
+    c.x += ddx; c.y += ddy;
+    if (CONTAINER_TYPES.has(c.type)) shiftDescendants(c.id, ddx, ddy);
+  });
+}
+
 function tagHeightFor(n) {
   const tags = n.tags || [];
   if (!tags.length) return 0;
@@ -747,77 +892,164 @@ function tagHeightFor(n) {
   }, 0);
 }
 
-function colsForVlan(vlan) {
-  const innerW = nW(vlan) - V_PAD*2;
-  return Math.max(1, Math.floor((innerW + C_GAP) / (C_W + C_GAP)));
+// Compact-mode planning size for a child cell: leaf nodes always plan at the
+// standard cell size (they get normalized to it), nested containers use
+// their own actual footprint so they aren't clipped.
+function compactCellW(k) { return CONTAINER_TYPES.has(k.type) ? nW(k) : C_W; }
+function compactCellH(k) { return CONTAINER_TYPES.has(k.type) ? nH(k) : C_H; }
+
+// Wrap children left-to-right into rows that fit within innerWidth, using
+// each child's compact-mode planning size — this lets a nested VLAN/Site/
+// Group take up multiple "columns" worth of space instead of being forced
+// into a single small cell.
+function flowLayoutKids(kids, innerWidth) {
+  const rows = [];
+  let curRow = [], curRowW = 0;
+  kids.forEach(k => {
+    const kw = compactCellW(k);
+    const nextW = curRow.length ? curRowW + C_GAP + kw : kw;
+    if (curRow.length && nextW > innerWidth) {
+      rows.push(curRow);
+      curRow = [k]; curRowW = kw;
+    } else {
+      curRow.push(k); curRowW = nextW;
+    }
+  });
+  if (curRow.length) rows.push(curRow);
+  return rows;
 }
 
-function minVlanSize(kids, cols) {
-  if (!kids.length) return { w: MIN_W.vlan, h: MIN_H.vlan };
-  const rows = Math.ceil(kids.length / cols);
-  const minW = V_PAD + cols*C_W + (cols-1)*C_GAP + V_PAD;
+function minVlanSize(kids, innerWidth, type='vlan') {
+  const minW0 = MIN_W[type] || MIN_W.vlan, minH0 = MIN_H[type] || MIN_H.vlan;
+  if (!kids.length) return { w: minW0, h: minH0 };
+  const iw = Math.max(innerWidth, C_W);
+  const rows = flowLayoutKids(kids, iw);
   let totalH = VH_TOP + V_PAD + V_PAD;
-  for (let r = 0; r < rows; r++) {
-    const rowKids = kids.slice(r * cols, r * cols + cols);
+  let maxRowW = 0;
+  rows.forEach((rowKids, ri) => {
     const maxTagH = rowKids.reduce((m,k)=>Math.max(m,tagHeightFor(k)), 0);
-    totalH += C_H + maxTagH + (r < rows - 1 ? C_GAP : 0);
-  }
+    const rowH = rowKids.reduce((m,k)=>Math.max(m,compactCellH(k)), 0);
+    const rowW = rowKids.reduce((sum,k,i)=> sum + compactCellW(k) + (i>0?C_GAP:0), 0);
+    maxRowW = Math.max(maxRowW, rowW);
+    totalH += maxTagH + rowH + (ri < rows.length-1 ? C_GAP : 0);
+  });
   return {
-    w: Math.max(minW, MIN_W.vlan),
-    h: Math.max(totalH, MIN_H.vlan)
+    w: Math.max(V_PAD*2 + maxRowW, minW0),
+    h: Math.max(totalH, minH0)
   };
 }
 
 function reflowChildren(vid) {
   const vlan = nodes.find(n=>n.id===vid); if (!vlan) return;
   const kids = getChildren(vid); if (!kids.length) return;
-  const cols = colsForVlan(vlan);
-  const rows = Math.ceil(kids.length / cols);
-  const rowY = [];
+  const innerWidth = Math.max(nW(vlan) - V_PAD*2, C_W);
+  const rows = flowLayoutKids(kids, innerWidth);
   let y = vlan.y + VH_TOP + V_PAD;
-  for (let r = 0; r < rows; r++) {
-    const rowKids = kids.slice(r * cols, r * cols + cols);
+  rows.forEach(rowKids => {
     const maxTagH = rowKids.reduce((m,k)=>Math.max(m,tagHeightFor(k)), 0);
-    rowY.push(y + maxTagH);
-    y += maxTagH + C_H + C_GAP;
-  }
-  kids.forEach((c, i) => {
-    const col = i % cols, row = Math.floor(i / cols);
-    c.x = vlan.x + V_PAD + col*(C_W+C_GAP);
-    c.y = rowY[row];
-    c.w = C_W; c.h = C_H;
+    const rowH = rowKids.reduce((m,k)=>Math.max(m,compactCellH(k)), 0);
+    let x = vlan.x + V_PAD;
+    rowKids.forEach(k => {
+      const newX = x, newY = y + maxTagH;
+      const ddx = newX - k.x, ddy = newY - k.y;
+      k.x = newX; k.y = newY;
+      if (CONTAINER_TYPES.has(k.type)) shiftDescendants(k.id, ddx, ddy);
+      else { k.w = C_W; k.h = C_H; }
+      x += compactCellW(k) + C_GAP;
+    });
+    y += maxTagH + rowH + C_GAP;
   });
 }
 
 function snapChildren(vid) {
   const vlan = nodes.find(n=>n.id===vid); if (!vlan) return;
   const kids = getChildren(vid);
-  const cols = colsForVlan(vlan);
-  const rows = Math.ceil(kids.length / cols);
-  let y = vlan.y + VH_TOP + V_PAD;
-  for (let r = 0; r < rows; r++) {
-    const rowKids = kids.slice(r * cols, r * cols + cols);
-    const maxTagH = rowKids.reduce((m,k)=>Math.max(m,tagHeightFor(k)), 0);
-    rowKids.forEach((c, ci) => {
-      c.x = vlan.x + V_PAD + ci*(C_W+C_GAP);
-      c.y = y + maxTagH;
-      c.w = C_W; c.h = C_H;
-    });
-    y += maxTagH + C_H + C_GAP;
-  }
+  reflowChildren(vid);
   if (kids.length > 0) {
-    const sz = minVlanSize(kids, cols);
+    const innerWidth = Math.max(nW(vlan) - V_PAD*2, C_W);
+    const sz = minVlanSize(kids, innerWidth, vlan.type);
     vlan.w = sz.w;
     vlan.h = sz.h;
   }
 }
 
-function hitVlan(pt, exclude) {
-  for (const n of nodes) {
-    if (n.type!=='vlan'||n.id===exclude) continue;
-    if (pt.x>=n.x&&pt.x<=n.x+nW(n)&&pt.y>=n.y&&pt.y<=n.y+nH(n)) return n.id;
+// Free-layout containers (site/group in 'free' mode): don't reposition
+// children, just grow or shrink the container's own box to snugly wrap them.
+// (Children's own absolute positions are the source of truth here, so no
+// descendant cascading is needed — the box is derived FROM them.)
+function autoFitContainer(vid) {
+  const c = nodes.find(n=>n.id===vid); if (!c) return;
+  const kids = getChildren(vid);
+  const minW = MIN_W[c.type] || 164, minH = MIN_H[c.type] || 100;
+  if (!kids.length) {
+    c.w = Math.max(c.w||minW, minW);
+    c.h = Math.max(c.h||minH, minH);
+    return;
   }
-  return null;
+  let mnX=Infinity, mnY=Infinity, mxX=-Infinity, mxY=-Infinity;
+  kids.forEach(k => {
+    mnX = Math.min(mnX, k.x);
+    mnY = Math.min(mnY, k.y - tagHeightFor(k));
+    mxX = Math.max(mxX, k.x + nW(k));
+    mxY = Math.max(mxY, k.y + nH(k));
+  });
+  const newX = mnX - V_PAD;
+  const newY = mnY - VH_TOP - V_PAD;
+  const newW = Math.max((mxX + V_PAD) - newX, minW);
+  const newH = Math.max((mxY + V_PAD) - newY, minH);
+  c.x = snap8(newX); c.y = snap8(newY);
+  c.w = Math.round(newW); c.h = Math.round(newH);
+}
+
+// Dispatch to the right re-layout strategy for a container: compact (VLAN,
+// or site/group while set to compact) packs kids into a flow grid; free
+// (site/group set to free layout) just auto-fits the border around current
+// positions without moving anything. Since a container's own size can
+// change as a result (grew/shrank to fit its contents), and that container
+// might itself be nested, the change is cascaded up through every ancestor
+// so an outer box never goes stale relative to what's now inside it.
+function relayoutContainer(vid, _seen) {
+  const seen = _seen || new Set();
+  if (seen.has(vid)) return;
+  seen.add(vid);
+  const c = nodes.find(n=>n.id===vid); if (!c) return;
+  if (c.layout === 'free') autoFitContainer(vid);
+  else snapChildren(vid);
+  if (c.parentId != null) relayoutContainer(c.parentId, seen);
+}
+
+// Live drag feedback: walk up through consecutive free-layout ancestors
+// (stopping at the first compact/VLAN one) and auto-fit each so the
+// border visibly grows/shrinks as a node is dragged around inside it.
+// Kept separate from relayoutContainer so an unrelated compact ancestor
+// further up doesn't re-pack (and visually jitter) on every mousemove.
+function liveExpandFreeAncestors(startParentId) {
+  let cur = startParentId != null ? nodes.find(n=>n.id===startParentId) : null;
+  const seen = new Set();
+  while (cur && !seen.has(cur.id) && cur.layout === 'free') {
+    seen.add(cur.id);
+    autoFitContainer(cur.id);
+    cur = cur.parentId != null ? nodes.find(n=>n.id===cur.parentId) : null;
+  }
+}
+
+// Finds the topmost container whose box contains pt, skipping any id in
+// excludeIds (used to stop a container from being dropped into itself or
+// into one of its own descendants).
+function hitContainer(pt, excludeIds) {
+  const skip = excludeIds instanceof Set ? excludeIds : new Set(excludeIds==null ? [] : [excludeIds]);
+  // A nested container's box always sits fully inside its parent's box, so
+  // more than one container can match the same point — pick the deepest
+  // (innermost) match rather than whichever happens to come first.
+  let best = null, bestDepth = -1;
+  for (const n of nodes) {
+    if (!CONTAINER_TYPES.has(n.type) || skip.has(n.id)) continue;
+    if (pt.x>=n.x&&pt.x<=n.x+nW(n)&&pt.y>=n.y&&pt.y<=n.y+nH(n)) {
+      const d = containerDepth(n);
+      if (d > bestDepth) { bestDepth = d; best = n.id; }
+    }
+  }
+  return best;
 }
 
 // ═══════════════════════════════════════════════════
@@ -825,10 +1057,26 @@ function hitVlan(pt, exclude) {
 // ═══════════════════════════════════════════════════
 function render() { renderEdges(); renderNodes(); updateMinimap(); updateStats(); }
 
+function containerDepth(n) {
+  let depth = 0, cur = n;
+  const seen = new Set([n.id]);
+  while (cur.parentId !== null) {
+    const parent = nodes.find(nn => nn.id === cur.parentId);
+    if (!parent || seen.has(parent.id)) break;
+    seen.add(parent.id);
+    depth++;
+    cur = parent;
+  }
+  return depth;
+}
+
 function renderNodes() {
-  const layer = $('nodes-layer'); layer.innerHTML='';
-  nodes.filter(n=>n.type==='vlan').forEach(n=>layer.appendChild(buildNode(n)));
-  nodes.filter(n=>n.type!=='vlan').forEach(n=>layer.appendChild(buildNode(n)));
+  const containerLayer = $('containers-layer'); containerLayer.innerHTML='';
+  const leafLayer = $('leaves-layer'); leafLayer.innerHTML='';
+  const containers = nodes.filter(n=>CONTAINER_TYPES.has(n.type));
+  containers.sort((a,b) => containerDepth(a) - containerDepth(b));
+  containers.forEach(n=>containerLayer.appendChild(buildNode(n)));
+  nodes.filter(n=>!CONTAINER_TYPES.has(n.type)).forEach(n=>leafLayer.appendChild(buildNode(n)));
 }
 
 function buildNode(n) {
@@ -840,8 +1088,8 @@ function buildNode(n) {
   g.setAttribute('class',`node-group${locked?' locked':''}${n.offline?' node-offline':''}`);
   g.setAttribute('transform',`translate(${n.x},${n.y})`);
 
-  if (n.type==='vlan') buildVlan(g,n,W,H,col,sel);
-  else                 buildRegular(g,n,W,H,col,sel);
+  if (CONTAINER_TYPES.has(n.type)) buildContainer(g,n,W,H,col,sel);
+  else                             buildRegular(g,n,W,H,col,sel);
 
   if ((n.tags||[]).length>0) buildTags(g,n,W);
 
@@ -974,7 +1222,7 @@ function buildTags(g, n, W) {
       delG.addEventListener('click', e => {
         e.stopPropagation();
         n.tags = n.tags.filter(t => t !== tag);
-        if (n.parentId) { reflowChildren(n.parentId); const vlan=nodes.find(v=>v.id===n.parentId); if(vlan){const sz=minVlanSize(getChildren(n.parentId),colsForVlan(vlan));vlan.w=sz.w;vlan.h=sz.h;} }
+        if (n.parentId) relayoutContainer(n.parentId);
         render();
       });
       tg.appendChild(delG);
@@ -985,7 +1233,9 @@ function buildTags(g, n, W) {
   });
 }
 
-function buildVlan(g,n,W,H,col,sel) {
+const CONTAINER_LABELS = { vlan:'VLAN', site:'SITE', group:'GROUP' };
+
+function buildContainer(g,n,W,H,col,sel) {
   const effCol = n.offline ? '#3a4050' : col;
   const bg=svgEl('rect');
   bg.setAttribute('width',W); bg.setAttribute('height',H); bg.setAttribute('rx',10);
@@ -993,8 +1243,21 @@ function buildVlan(g,n,W,H,col,sel) {
   bg.setAttribute('stroke', n.offline ? '#2a3040' : col);
   bg.setAttribute('stroke-width',sel?2.5:1.5);
   bg.setAttribute('stroke-dasharray', n.offline ? '4,5' : '7,3');
+  if (n._detachArmed) {
+    bg.setAttribute('stroke', '#ef4444');
+    bg.setAttribute('stroke-width', 3);
+    bg.setAttribute('stroke-dasharray', '4,3');
+  }
   bg.setAttribute('filter','drop-shadow(0 2px 10px rgba(0,0,0,.4))');
   g.appendChild(bg);
+
+  if (n._detachArmed) {
+    const rb = txt(7, '#ef4444', W/2, -6, '\u2715 RELEASE TO REMOVE');
+    rb.setAttribute('text-anchor','middle');
+    rb.setAttribute('font-family',"'Rajdhani',sans-serif");
+    rb.setAttribute('font-weight',700); rb.setAttribute('letter-spacing',1);
+    g.appendChild(rb);
+  }
 
   const hbg=svgEl('rect');
   hbg.setAttribute('width',W); hbg.setAttribute('height',VH_TOP); hbg.setAttribute('rx',10);
@@ -1004,20 +1267,30 @@ function buildVlan(g,n,W,H,col,sel) {
   hbg2.setAttribute('y',VH_TOP/2); hbg2.setAttribute('width',W); hbg2.setAttribute('height',VH_TOP/2);
   hbg2.setAttribute('fill',rgba(effCol,0.16)); g.appendChild(hbg2);
 
+  const label = CONTAINER_LABELS[n.type] || 'GROUP';
+
   if (n.offline) {
     const ob = txt(7, '#ef4444', W-8, 13, '⊘ OFFLINE');
     ob.setAttribute('font-family',"'Rajdhani',sans-serif");
     ob.setAttribute('font-weight',700); ob.setAttribute('letter-spacing',1.2);
     ob.setAttribute('text-anchor','end');
     g.appendChild(ob);
-  } else {
-    const badge = txt(8, rgba(col,0.8), 10, 13, 'VLAN');
-    badge.setAttribute('font-family',"'Rajdhani',sans-serif");
-    badge.setAttribute('letter-spacing',2); badge.setAttribute('font-weight',700);
-    g.appendChild(badge);
+  } else if (n.layout==='free' && mode==='draft') {
+    const fb = txt(7, '#2dd4bf', W-8, 13, '\u21C4 FREE');
+    fb.setAttribute('font-family',"'Rajdhani',sans-serif");
+    fb.setAttribute('font-weight',700); fb.setAttribute('letter-spacing',1.2);
+    fb.setAttribute('text-anchor','end');
+    g.appendChild(fb);
   }
 
-  const nameEl = txt(11, n.offline ? 'rgba(255,255,255,.4)' : '#fff', W/2, VH_TOP/2+6, trunc(n.name||'VLAN',28));
+  const badge = txt(8, rgba(col,0.8), 10, 13, label);
+  badge.setAttribute('font-family',"'Rajdhani',sans-serif");
+  badge.setAttribute('letter-spacing',2); badge.setAttribute('font-weight',700);
+  g.appendChild(badge);
+
+  const names = n.names && n.names.length ? n.names : (n.name ? [n.name] : [label]);
+  const nameSuffix = names.length > 1 ? ` +${names.length-1}` : '';
+  const nameEl = txt(11, n.offline ? 'rgba(255,255,255,.4)' : '#fff', W/2, VH_TOP/2+6, trunc(names[0]||label,28-nameSuffix.length)+nameSuffix);
   nameEl.setAttribute('text-anchor','middle'); nameEl.setAttribute('font-weight','500');
   g.appendChild(nameEl);
 
@@ -1032,6 +1305,15 @@ function buildVlan(g,n,W,H,col,sel) {
     const hint = txt(9,'rgba(255,255,255,.18)', W/2, H/2+8, 'Drop nodes here');
     hint.setAttribute('text-anchor','middle'); g.appendChild(hint);
   }
+
+  // Exclude-from-web indicator (draft mode only, so presentation stays clean)
+  if (n.excludeWeb && mode==='draft') {
+    const wb = txt(7, '#f59e0b', W-7, H-6, '\u2298 NO WEB');
+    wb.setAttribute('font-family',"'Rajdhani',sans-serif");
+    wb.setAttribute('font-weight',700); wb.setAttribute('letter-spacing',1);
+    wb.setAttribute('text-anchor','end');
+    g.appendChild(wb);
+  }
 }
 
 function buildRegular(g,n,W,H,col,sel) {
@@ -1042,8 +1324,21 @@ function buildRegular(g,n,W,H,col,sel) {
   bg.setAttribute('stroke', n.offline ? '#3a4050' : col);
   bg.setAttribute('stroke-width', n.offline ? 1 : (sel ? 2 : 1.5));
   if (n.offline) bg.setAttribute('stroke-dasharray','5,3');
+  if (n._detachArmed) {
+    bg.setAttribute('stroke', '#ef4444');
+    bg.setAttribute('stroke-width', 2.5);
+    bg.setAttribute('stroke-dasharray', '4,3');
+  }
   bg.setAttribute('filter','drop-shadow(0 2px 8px rgba(0,0,0,.5))');
   g.appendChild(bg);
+
+  if (n._detachArmed) {
+    const rb = txt(7, '#ef4444', W/2, -6, '\u2715 RELEASE TO REMOVE');
+    rb.setAttribute('text-anchor','middle');
+    rb.setAttribute('font-family',"'Rajdhani',sans-serif");
+    rb.setAttribute('font-weight',700); rb.setAttribute('letter-spacing',1);
+    g.appendChild(rb);
+  }
 
   const bar=svgEl('rect');
   bar.setAttribute('width',4); bar.setAttribute('height',H); bar.setAttribute('rx',4);
@@ -1077,7 +1372,10 @@ function buildRegular(g,n,W,H,col,sel) {
   const ipFill = n.offline ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.5)';
   const nameFill = n.offline ? 'rgba(255,255,255,.45)' : '#fff';
   const ny = hasIp ? Math.round(H/2)-4 : Math.round(H/2)+4;
-  const nameEl = txt(11, nameFill, 36, ny, trunc(n.name||'Node', Math.floor((W-44)/7)));
+  const names = n.names && n.names.length ? n.names : (n.name ? [n.name] : ['Node']);
+  const nameSuffix = names.length > 1 ? ` +${names.length-1}` : '';
+  const nameMaxChars = Math.floor((W-44)/7) - nameSuffix.length;
+  const nameEl = txt(11, nameFill, 36, ny, trunc(names[0]||'Node', nameMaxChars) + nameSuffix);
   nameEl.setAttribute('font-weight','500');
   g.appendChild(nameEl);
 
@@ -1246,7 +1544,7 @@ function nodeMD(e,id) {
   // Spiderweb: highlight all edges connected to any selected node
   updateSpiderweb();
   const pt=svgPt(e);
-  dragging={id, sx:pt.x, sy:pt.y, ox:n.x, oy:n.y};
+  dragging={id, sx:pt.x, sy:pt.y, ox:n.x, oy:n.y, beforeSnap: snapshotState()};
   if (!wasSelected || hadEdge) render();
   else renderEdges();
 }
@@ -1300,7 +1598,7 @@ function startResize(e,id,handle) {
   const n=nodes.find(n=>n.id===id);
   if (!n) return;
   const pt=svgPt(e);
-  resizing={id,handle,sx:pt.x,sy:pt.y,ox:n.x,oy:n.y,ow:nW(n),oh:nH(n)};
+  resizing={id,handle,sx:pt.x,sy:pt.y,ox:n.x,oy:n.y,ow:nW(n),oh:nH(n), beforeSnap: snapshotState()};
 }
 
 // ═══════════════════════════════════════════════════
@@ -1338,18 +1636,28 @@ function canvasMM(e) {
     let {ox,oy,ow,oh}=resizing;
     let nx=ox,ny=oy,nw=ow,nh=oh;
 
-    if (n.type==='vlan') {
+    if (CONTAINER_TYPES.has(n.type) && n.layout !== 'free') {
+      // Compact layout (any container while in compact mode): packed grid resize
       const kids=getChildren(n.id);
+      const minW = MIN_W[n.type]||164, minH = MIN_H[n.type]||100;
       let pnw=ow, pnh=oh, pnx=ox, pny=oy;
-      if(h.includes('e')) pnw=Math.max(MIN_W.vlan, ow+dx);
-      if(h.includes('s')) pnh=Math.max(MIN_H.vlan, oh+dy);
-      if(h.includes('w')){pnw=Math.max(MIN_W.vlan, ow-dx);pnx=ox+ow-pnw;}
-      if(h.includes('n')){pnh=Math.max(MIN_H.vlan, oh-dy);pny=oy+oh-pnh;}
-      const proposedCols=Math.max(1, Math.floor((pnw - V_PAD*2 + C_GAP)/(C_W+C_GAP)));
-      const cmin=minVlanSize(kids, proposedCols);
+      if(h.includes('e')) pnw=Math.max(minW, ow+dx);
+      if(h.includes('s')) pnh=Math.max(minH, oh+dy);
+      if(h.includes('w')){pnw=Math.max(minW, ow-dx);pnx=ox+ow-pnw;}
+      if(h.includes('n')){pnh=Math.max(minH, oh-dy);pny=oy+oh-pnh;}
+      const proposedInnerWidth=Math.max(pnw - V_PAD*2, C_W);
+      const cmin=minVlanSize(kids, proposedInnerWidth, n.type);
       pnw=Math.max(pnw, cmin.w); pnh=Math.max(pnh, cmin.h);
       n.x=snap8(pnx);n.y=snap8(pny);n.w=Math.round(pnw);n.h=Math.round(pnh);
       reflowChildren(n.id);
+    } else if (CONTAINER_TYPES.has(n.type)) {
+      // Free layout (site/group): resize like a normal box, no forced repacking
+      const mw=MIN_W[n.type]||164, mh=MIN_H[n.type]||100;
+      if(h.includes('e')) nw=Math.max(mw,ow+dx);
+      if(h.includes('s')) nh=Math.max(mh,oh+dy);
+      if(h.includes('w')){nw=Math.max(mw,ow-dx);nx=ox+ow-nw;}
+      if(h.includes('n')){nh=Math.max(mh,oh-dy);ny=oy+oh-nh;}
+      n.x=snap8(nx);n.y=snap8(ny);n.w=snap8(nw);n.h=snap8(nh);
     } else {
       const mw=MIN_W[n.type]||100, mh=MIN_H[n.type]||48;
       if(h.includes('e')) nw=Math.max(mw,ow+dx);
@@ -1366,15 +1674,33 @@ function canvasMM(e) {
     const dx=pt.x-dragging.sx, dy=pt.y-dragging.sy;
     const n=nodes.find(n=>n.id===dragging.id);
     if (!n) { dragging=null; return; }
+
+    // Free-layout containers hold onto their children by default; only
+    // holding the detach key (Alt) while dragging will let one leave. Give
+    // a one-time heads-up the moment that key is pressed during the drag.
+    if (n.parentId) {
+      const parent = nodes.find(p=>p.id===n.parentId);
+      if (parent && parent.layout==='free') {
+        if (e.altKey && !n._detachArmed) {
+          n._detachArmed = true;
+          toast('Release to remove from the group','info');
+        } else if (!e.altKey && n._detachArmed) {
+          n._detachArmed = false;
+        }
+      }
+    }
+
     const nx=snap(dragging.ox+dx), ny=snap(dragging.oy+dy);
-    if (n.type==='vlan') {
+    if (CONTAINER_TYPES.has(n.type)) {
       const ddx=nx-n.x, ddy=ny-n.y;
       n.x=nx; n.y=ny;
-      getChildren(n.id).forEach(c=>{ c.x+=ddx; c.y+=ddy; });
+      shiftDescendants(n.id, ddx, ddy);
+      if (n.parentId && !n._detachArmed) liveExpandFreeAncestors(n.parentId);
       render(); return;
     } else {
       n.x=nx; n.y=ny;
       if (n.parentId) {
+        if (!n._detachArmed) liveExpandFreeAncestors(n.parentId);
         render(); return;
       }
       const el=$(`node-${n.id}`);
@@ -1412,29 +1738,51 @@ function canvasMU(e) {
 
   if (dragging) {
     const n=nodes.find(n=>n.id===dragging.id);
-    if (n && n.type!=='vlan') {
-      const ctr={x:n.x+nW(n)/2, y:n.y+nH(n)/2};
-      const vid=hitVlan(ctr,n.id);
-      if (vid!==null && n.parentId!==vid) {
-        if (n.parentId) { const op=n.parentId; n.parentId=null; snapChildren(op); }
-        n.parentId=vid;
-        snapChildren(vid);
-        toast('Snapped into VLAN','success');
+    if (n) {
+      const oldParent = n.parentId ? nodes.find(p=>p.id===n.parentId) : null;
+      const oldParentIsFree = !!oldParent && oldParent.layout==='free';
+
+      if (oldParentIsFree) {
+        // Free-layout containers only let go of a child when the detach
+        // key (Alt) was held at the moment of the drop — otherwise they
+        // just grow/shrink the border to keep including it.
+        if (e.altKey) {
+          const op = oldParent.id; n.parentId = null; relayoutContainer(op);
+          toast('Removed from group', 'info');
+        } else {
+          autoFitContainer(oldParent.id);
+        }
+        n._detachArmed = false;
         render();
-      } else if (n.parentId && vid===null) {
-        const vlan=nodes.find(v=>v.id===n.parentId);
-        if (vlan) {
-          const inside=n.x>=vlan.x&&n.y>=vlan.y&&n.x+nW(n)<=vlan.x+nW(vlan)&&n.y+nH(n)<=vlan.y+nH(vlan);
+      } else {
+        // Compact/VLAN parent (or no parent yet): normal geometric
+        // hit-testing decides membership. A container can't be dropped
+        // into itself or into one of its own descendants.
+        const ctr={x:n.x+nW(n)/2, y:n.y+nH(n)/2};
+        const exclude = CONTAINER_TYPES.has(n.type)
+          ? new Set([n.id, ...getDescendantIds(n.id)])
+          : n.id;
+        const vid=hitContainer(ctr,exclude);
+        if (vid!==null && n.parentId!==vid) {
+          if (n.parentId) { const op=n.parentId; n.parentId=null; relayoutContainer(op); }
+          n.parentId=vid;
+          relayoutContainer(vid);
+          toast('Snapped into group','success');
+          render();
+        } else if (n.parentId && vid===null && oldParent) {
+          const inside=n.x>=oldParent.x&&n.y>=oldParent.y&&n.x+nW(n)<=oldParent.x+nW(oldParent)&&n.y+nH(n)<=oldParent.y+nH(oldParent);
           if (!inside) {
-            const op=n.parentId; n.parentId=null; snapChildren(op);
-            toast('Removed from VLAN','info'); render();
+            const op=n.parentId; n.parentId=null; relayoutContainer(op);
+            toast('Removed from group','info'); render();
           }
         }
       }
     }
+    pushUndoIfChanged(dragging.beforeSnap);
     dragging=null;
   }
 
+  if (resizing) pushUndoIfChanged(resizing.beforeSnap);
   resizing=null;
   clearVlanHi();
 }
@@ -1463,9 +1811,8 @@ function paletteDrag(e,type) { pendingDropType=type; pendingTagType=null; e.data
 function tagDrag(e,type)     { pendingTagType=type; pendingDropType=null; e.dataTransfer.effectAllowed='copy'; }
 
 function onDragOver(e) {
-  if (pendingDropType==='vlan') { clearVlanHi(); return; }
   if (!pendingDropType && !pendingTagType) { clearVlanHi(); return; }
-  const pt=svgPt(e), vid=hitVlan(pt,null);
+  const pt=svgPt(e), vid=hitContainer(pt,null);
   if (vid!==vlanDropHi) {
     clearVlanHi();
     if (vid!==null) { $(`node-${vid}`)?.classList.add('vlan-hi'); vlanDropHi=vid; }
@@ -1488,7 +1835,7 @@ function canvasDrop(e) {
     const tagType=pendingTagType; pendingTagType=null;
     if (!ALLOWED_TAG_TYPES.has(tagType)) return;
     const pt=svgPt(e);
-    const target=nodes.find(n=> n.type!=='vlan' && pt.x>=n.x&&pt.x<=n.x+nW(n)&&pt.y>=n.y&&pt.y<=n.y+nH(n));
+    const target=nodes.find(n=> !CONTAINER_TYPES.has(n.type) && pt.x>=n.x&&pt.x<=n.x+nW(n)&&pt.y>=n.y&&pt.y<=n.y+nH(n));
     if (target) {
       if (!target.tags) target.tags=[];
       openTagModal(target.id, tagType);
@@ -1500,13 +1847,12 @@ function canvasDrop(e) {
 
   const type=pendingDropType; pendingDropType=null; if(!type) return;
   if (!ALLOWED_TYPES.has(type)) return;
+  pushUndo();
   const pt=svgPt(e);
   const n=addNode(type, snap(pt.x-DEF_W[type]/2), snap(pt.y-DEF_H[type]/2), false);
-  if (type!=='vlan') {
-    const ctr={x:n.x+nW(n)/2, y:n.y+nH(n)/2};
-    const vid=hitVlan(ctr,n.id);
-    if (vid!==null) { n.parentId=vid; snapChildren(vid); toast('Dropped into VLAN','success'); }
-  }
+  const ctr={x:n.x+nW(n)/2, y:n.y+nH(n)/2};
+  const vid=hitContainer(ctr,n.id);
+  if (vid!==null) { n.parentId=vid; relayoutContainer(vid); toast('Dropped into group','success'); }
   render();
 }
 
@@ -1519,7 +1865,7 @@ function completeEdge(id) {
   if (edgeStart===null||edgeStart===id){cancelEdge();return;}
   if (!nodes.find(n=>n.id===edgeStart)) { cancelEdge(); return; }
   const dup=edges.some(e=>(e.from===edgeStart&&e.to===id)||(e.from===id&&e.to===edgeStart));
-  if(!dup){edges.push({id:nextId++,from:edgeStart,to:id,colour:'default',direction:'none',label:'',notes:'',via:[]});toast('Connected','success');}
+  if(!dup){pushUndo();edges.push({id:nextId++,from:edgeStart,to:id,colour:'default',direction:'none',label:'',notes:'',via:[],infoTabs:[]});toast('Connected','success');}
   cancelEdge(); render();
 }
 
@@ -1534,13 +1880,16 @@ function cancelEdge() {
 function addNode(type,x,y,doRender=true) {
   if (!ALLOWED_TYPES.has(type)) type = 'other';
   const count=nodes.filter(n=>n.type===type).length+1;
-  const pfx={server:'server',workstation:'ws',router:'router',switch:'sw',firewall:'fw',vlan:'VLAN',modem:'modem',gateway:'gw',wap:'wap',camera:'cam',other:'device'};
+  const pfx={server:'server',workstation:'ws',router:'router',switch:'sw',firewall:'fw',vlan:'VLAN',modem:'modem',gateway:'gw',wap:'wap',camera:'cam',other:'device',site:'site',group:'group'};
+  const defaultName = `${pfx[type]||type}-${String(count).padStart(2,'0')}`;
   const n={
     id:nextId++,type,
     x:x??100+Math.random()*300, y:y??100+Math.random()*200,
     w:DEF_W[type]||140, h:DEF_H[type]||60,
-    name:`${pfx[type]||type}-${String(count).padStart(2,'0')}`,
-    ip:'', ips:[], vlan:'', notes:'', infoTabs:[], parentId:null, tags:[], offline:false, excludeWeb:false
+    name:defaultName, names:[defaultName],
+    ip:'', ips:[], vlan:'', notes:'', infoTabs:[], parentId:null, tags:[], offline:false,
+    excludeWeb: CONTAINER_TYPES.has(type),
+    layout: CONTAINER_TYPES.has(type) ? 'compact' : undefined,
   };
   nodes.push(n); if(doRender) render(); return n;
 }
@@ -1560,7 +1909,7 @@ function collectDeleteSet(rootIds) {
     if (idSet.has(id)) continue;
     idSet.add(id);
     const n = nodes.find(n => n.id === id);
-    if (n?.type === 'vlan') {
+    if (n && CONTAINER_TYPES.has(n.type)) {
       getChildren(id).forEach(c => queue.push(c.id));
     }
   }
@@ -1569,6 +1918,7 @@ function collectDeleteSet(rootIds) {
 
 function deleteSelected() {
   if (selectedEdge!==null) {
+    pushUndo();
     edges=edges.filter(e=>e.id!==selectedEdge);
     selectedEdge=null;
     render();
@@ -1576,6 +1926,7 @@ function deleteSelected() {
     return;
   }
   if (selectedNodes.size>0) {
+    pushUndo();
     const idSet = collectDeleteSet([...selectedNodes]);
     const parentIds = new Set(
       nodes.filter(n => idSet.has(n.id) && n.parentId && !idSet.has(n.parentId))
@@ -1584,7 +1935,7 @@ function deleteSelected() {
     nodes = nodes.filter(n => !idSet.has(n.id));
     edges = edges.filter(e => !idSet.has(e.from) && !idSet.has(e.to));
     edges.forEach(e => { if (Array.isArray(e.via)) e.via = e.via.filter(v=>!idSet.has(v)); });
-    parentIds.forEach(vid => { if (nodes.find(n => n.id===vid)) snapChildren(vid); });
+    parentIds.forEach(vid => { if (nodes.find(n => n.id===vid)) relayoutContainer(vid); });
     if (selectedEdge !== null && !edges.some(e => e.id === selectedEdge)) selectedEdge = null;
     selectedNodes.clear();
     toast(`Deleted ${idSet.size} node(s)`,'info');
@@ -1597,6 +1948,12 @@ document.addEventListener('keydown',e=>{
   if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA') return;
   if((e.key==='Delete'||e.key==='Backspace') && mode!=='presentation') deleteSelected();
   if(e.key==='Escape'){cancelEdge();closeModal();closeTagModal();closeEdgeModal();hideCtx();closeRenameModal();closeNodeDetail();}
+  if((e.ctrlKey||e.metaKey) && !e.shiftKey && e.key.toLowerCase()==='z' && mode!=='presentation') {
+    e.preventDefault(); undo();
+  }
+  if((e.ctrlKey||e.metaKey) && ((e.shiftKey && e.key.toLowerCase()==='z') || e.key.toLowerCase()==='y') && mode!=='presentation') {
+    e.preventDefault(); redo();
+  }
 });
 
 // ═══════════════════════════════════════════════════
@@ -1605,10 +1962,7 @@ document.addEventListener('keydown',e=>{
 function showCtx(e,type,id) {
   if(mode==='presentation') return;
   ctxTarget={type,id};
-  const m=$('ctx-menu'); m.style.display='block';
-  const mW=m.offsetWidth||170, mH=m.offsetHeight||150;
-  m.style.left=Math.min(e.clientX, window.innerWidth  - mW - 4)+'px';
-  m.style.top =Math.min(e.clientY, window.innerHeight - mH - 4)+'px';
+  const m=$('ctx-menu');
   const isNode = type==='node';
   const isEdge = type==='edge';
   $('ctx-edit').style.display=isNode?'flex':'none';
@@ -1617,13 +1971,27 @@ function showCtx(e,type,id) {
   $('ctx-offline').style.display=isNode?'flex':'none';
   $('ctx-web-exclude').style.display=isNode?'flex':'none';
   $('ctx-edge-edit').style.display=isEdge?'flex':'none';
+  const n = isNode ? nodes.find(n=>n.id===id) : null;
+  const isFreeCapable = !!n && CONTAINER_TYPES.has(n.type);
+  $('ctx-layout').style.display = isFreeCapable ? 'flex' : 'none';
   if (isNode) {
-    const n = nodes.find(n=>n.id===id);
     const offlineLabel = $('ctx-offline-label');
     if (offlineLabel) offlineLabel.textContent = n?.offline ? 'Mark Online' : 'Toggle Offline';
     const webLabel = $('ctx-web-exclude-label');
     if (webLabel) webLabel.textContent = n?.excludeWeb ? 'Include in Web' : 'Exclude from Web';
+    if (isFreeCapable) {
+      const layoutLabel = $('ctx-layout-label');
+      if (layoutLabel) layoutLabel.textContent = n.layout==='free' ? 'Switch to Compact Layout' : 'Switch to Free Layout';
+    }
   }
+
+  // Measure and position AFTER visibility is set for this specific click,
+  // so the clamp is based on this menu's actual current size, not whatever
+  // it happened to measure as the last time it was opened.
+  m.style.display='block';
+  const mW=m.offsetWidth||170, mH=m.offsetHeight||150;
+  m.style.left=Math.max(4, Math.min(e.clientX, window.innerWidth  - mW - 4))+'px';
+  m.style.top =Math.max(4, Math.min(e.clientY, window.innerHeight - mH - 4))+'px';
 }
 function hideCtx() { $('ctx-menu').style.display='none'; ctxTarget=null; }
 document.addEventListener('click',hideCtx);
@@ -1634,13 +2002,14 @@ function ctxConn()   { if(ctxTarget?.type==='node'){startEdge(ctxTarget.id);setT
 function ctxToggleOffline() {
   if (!ctxTarget || ctxTarget.type !== 'node') return;
   const n = nodes.find(n=>n.id===ctxTarget.id);
-  if (n) { n.offline = !n.offline; render(); toast(n.offline ? 'Marked offline' : 'Marked online', 'info'); }
+  if (n) { pushUndo(); n.offline = !n.offline; render(); toast(n.offline ? 'Marked offline' : 'Marked online', 'info'); }
   hideCtx();
 }
 function ctxToggleWebExclude() {
   if (!ctxTarget || ctxTarget.type !== 'node') return;
   const n = nodes.find(n=>n.id===ctxTarget.id);
   if (n) {
+    pushUndo();
     n.excludeWeb = !n.excludeWeb;
     if (selectedNodes.size) updateSpiderweb();
     render();
@@ -1648,8 +2017,21 @@ function ctxToggleWebExclude() {
   }
   hideCtx();
 }
+function ctxToggleLayout() {
+  if (!ctxTarget || ctxTarget.type !== 'node') return;
+  const n = nodes.find(n=>n.id===ctxTarget.id);
+  if (n && CONTAINER_TYPES.has(n.type)) {
+    pushUndo();
+    n.layout = n.layout === 'free' ? 'compact' : 'free';
+    relayoutContainer(n.id);
+    render();
+    toast(n.layout==='free' ? 'Switched to free layout' : 'Switched to compact layout', 'info');
+  }
+  hideCtx();
+}
 function ctxDel()  {
   if(!ctxTarget) return;
+  pushUndo();
   if(ctxTarget.type==='node') {
     const n = nodes.find(n => n.id===ctxTarget.id);
     const parentId = n?.parentId;
@@ -1658,7 +2040,7 @@ function ctxDel()  {
     edges = edges.filter(e => !idSet.has(e.from) && !idSet.has(e.to));
     edges.forEach(e => { if (Array.isArray(e.via)) e.via = e.via.filter(v=>!idSet.has(v)); });
     if (selectedEdge !== null && !edges.some(e => e.id === selectedEdge)) selectedEdge = null;
-    if (parentId && nodes.find(n => n.id===parentId)) snapChildren(parentId);
+    if (parentId && nodes.find(n => n.id===parentId)) relayoutContainer(parentId);
     selectedNodes.clear();
     toast('Deleted','info');
   } else {
@@ -1722,6 +2104,56 @@ function addIpRow() {
   input.focus();
 }
 
+function renderNameRows(names) {
+  const container = $('f-names-container');
+  container.innerHTML = '';
+  const list = names.length ? names : [''];
+  list.forEach((name, i) => {
+    const row = document.createElement('div');
+    row.className = 'ip-row';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = i===0 ? 'e.g. web-server-01' : 'e.g. alias, CNAME, alt hostname…';
+    input.value = name;
+    input.maxLength = MAX_NAME_LEN;
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'ip-del-btn';
+    del.textContent = '×';
+    del.title = 'Remove this name';
+    del.onclick = () => {
+      if (container.querySelectorAll('.ip-row').length > 1) row.remove();
+      else input.value = '';
+    };
+    row.appendChild(input);
+    row.appendChild(del);
+    container.appendChild(row);
+  });
+}
+
+function addNameRow() {
+  const container = $('f-names-container');
+  if (container.querySelectorAll('.ip-row').length >= MAX_NAMES) { toast(`Max ${MAX_NAMES} names per node`,'info'); return; }
+  const row = document.createElement('div');
+  row.className = 'ip-row';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'e.g. alias, CNAME, alt hostname…';
+  input.maxLength = MAX_NAME_LEN;
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'ip-del-btn';
+  del.textContent = '×';
+  del.onclick = () => {
+    if (container.querySelectorAll('.ip-row').length > 1) row.remove();
+    else input.value = '';
+  };
+  row.appendChild(input);
+  row.appendChild(del);
+  container.appendChild(row);
+  input.focus();
+}
+
 function syncOfflineToggle(checked) {
   const track = $('f-offline-track');
   const thumb = $('f-offline-thumb');
@@ -1754,6 +2186,22 @@ function syncWebExcludeToggle(checked) {
   }
 }
 
+function syncLayoutToggle(checked) {
+  const track = $('f-layout-track');
+  const thumb = $('f-layout-thumb');
+  if (checked) {
+    track.style.background = 'rgba(45,212,191,.2)';
+    track.style.borderColor = '#2dd4bf';
+    thumb.style.background = '#2dd4bf';
+    thumb.style.transform = 'translateX(18px)';
+  } else {
+    track.style.background = 'var(--bg-surface)';
+    track.style.borderColor = 'var(--border)';
+    thumb.style.background = 'var(--text-dim)';
+    thumb.style.transform = 'none';
+  }
+}
+
 // ═══════════════════════════════════════════════════
 // MODAL
 // ═══════════════════════════════════════════════════
@@ -1764,9 +2212,11 @@ function openEditModal(id) {
   const n=nodes.find(n=>n.id===id);
   if (!n) { toast('Node no longer exists','error'); return; }
   editingId=id;
-  $('f-name').value=n.name||'';
   $('f-vlan').value=n.vlan||''; $('f-notes').value=n.notes||'';
   $('f-type').value=n.type||'server';
+  // Multi-name
+  const editNames = (n.names && n.names.length) ? [...n.names] : (n.name ? [n.name] : ['']);
+  renderNameRows(editNames);
   // Multi-IP
   const editIps = (n.ips && n.ips.length) ? [...n.ips] : (n.ip ? [n.ip] : ['']);
   renderIpRows(editIps);
@@ -1780,10 +2230,23 @@ function openEditModal(id) {
   webCb.checked = !!n.excludeWeb;
   syncWebExcludeToggle(webCb.checked);
   webCb.onchange = () => syncWebExcludeToggle(webCb.checked);
+  // Free-layout toggle (only meaningful for site/group containers)
+  const layoutCb = $('f-layout');
+  layoutCb.checked = n.layout === 'free';
+  syncLayoutToggle(layoutCb.checked);
+  layoutCb.onchange = () => syncLayoutToggle(layoutCb.checked);
+  updateLayoutRowVisibility(n.type);
+  $('f-type').onchange = () => updateLayoutRowVisibility($('f-type').value);
   editingTabs = (n.infoTabs||[]).map(t=>({title:t.title||'',content:t.content||''}));
   activeTabIdx = editingTabs.length ? 0 : -1;
   renderTabsBar();
-  $('modal-overlay').classList.add('show'); $('f-name').focus();
+  $('modal-overlay').classList.add('show');
+  $('f-names-container').querySelector('input')?.focus();
+}
+
+function updateLayoutRowVisibility(type) {
+  const showLayout = CONTAINER_TYPES.has(type);
+  $('f-layout-row').style.display = showLayout ? 'flex' : 'none';
 }
 
 function renderTabsBar() {
@@ -1838,9 +2301,13 @@ function saveModal() {
   flushActiveTab();
   const n=nodes.find(n=>n.id===editingId);
   if (!n) { closeModal(); toast('Node was deleted','error'); return; }
+  pushUndo();
   const nt=$('f-type').value;
   const safeType = ALLOWED_TYPES.has(nt) ? nt : n.type;
-  n.name=$('f-name').value.trim().slice(0,MAX_NAME_LEN)||n.name;
+  // Collect names
+  const nameInputs = $('f-names-container').querySelectorAll('input');
+  n.names = [...nameInputs].map(i=>i.value.trim().slice(0,MAX_NAME_LEN)).filter(Boolean).slice(0,MAX_NAMES);
+  n.name = n.names[0] || n.name || safeType;
   // Collect IPs
   const ipInputs = $('f-ips-container').querySelectorAll('input');
   n.ips = [...ipInputs].map(i=>i.value.trim().slice(0,MAX_IP_LEN)).filter(Boolean).slice(0,MAX_IPS);
@@ -1854,7 +2321,11 @@ function saveModal() {
     .slice(0, MAX_TABS)
     .map(t=>({title:t.title.trim().slice(0,MAX_NAME_LEN)||'Info', content:t.content.slice(0,MAX_TAB_CONTENT_LEN)}));
   if(safeType!==n.type){n.type=safeType;n.w=DEF_W[safeType];n.h=DEF_H[safeType];}
-  if(n.parentId) snapChildren(n.parentId);
+  if (CONTAINER_TYPES.has(n.type)) {
+    n.layout = $('f-layout').checked ? 'free' : 'compact';
+  }
+  if(n.parentId) relayoutContainer(n.parentId);
+  if (CONTAINER_TYPES.has(n.type)) relayoutContainer(n.id);
   if (selectedNodes.size) updateSpiderweb();
   closeModal(); render(); toast('Saved','success');
 }
@@ -1909,8 +2380,9 @@ function fitToScreen() {
 }
 
 function autoLayout() {
-  const vlans = nodes.filter(n => n.type === 'vlan');
-  const tops  = nodes.filter(n => !n.parentId && n.type !== 'vlan');
+  pushUndo();
+  const containers = nodes.filter(n => CONTAINER_TYPES.has(n.type));
+  const tops  = nodes.filter(n => !n.parentId && !CONTAINER_TYPES.has(n.type));
 
   const H_GAP = 60;
   const V_GAP = 80;
@@ -1918,23 +2390,30 @@ function autoLayout() {
   const START_X = 60;
   let x = START_X, y = 60, rowMaxH = 0, sectionMaxY = 60;
 
-  vlans.forEach(v => {
-    snapChildren(v.id);
+  containers.forEach(v => {
+    relayoutContainer(v.id);
     const vw = nW(v), vh = nH(v);
     if (x > START_X && x + vw > canvasW - START_X) {
       y += rowMaxH + V_GAP;
       x = START_X;
       rowMaxH = 0;
     }
+    const ddx = x - v.x, ddy = y - v.y;
     v.x = x; v.y = y;
-    snapChildren(v.id);
+    if (v.layout === 'free') {
+      // Free-layout children keep their own absolute position — carry them
+      // along with the container instead of repacking them.
+      shiftDescendants(v.id, ddx, ddy);
+    } else {
+      relayoutContainer(v.id);
+    }
     x += vw + H_GAP;
     rowMaxH = Math.max(rowMaxH, vh);
     sectionMaxY = Math.max(sectionMaxY, y + vh);
   });
 
   if (tops.length > 0) {
-    const baseY = vlans.length > 0 ? sectionMaxY + V_GAP : 60;
+    const baseY = containers.length > 0 ? sectionMaxY + V_GAP : 60;
     const cols = Math.min(5, Math.ceil(Math.sqrt(tops.length)));
     const cellW = tops.reduce((m,n)=>Math.max(m,nW(n)), 0) + H_GAP;
     const cellH = tops.reduce((m,n)=>Math.max(m,nH(n)), 0) + V_GAP;
@@ -1971,7 +2450,7 @@ function updateMinimap() {
     r.setAttribute('x',pad+(n.x-mnX)*sc); r.setAttribute('y',pad+(n.y-mnY)*sc);
     r.setAttribute('width',Math.max(3,nW(n)*sc)); r.setAttribute('height',Math.max(2,nH(n)*sc));
     r.setAttribute('rx',1);
-    r.setAttribute('fill', n.offline ? 'rgba(60,64,80,0.5)' : rgba(COL[n.type]||'#3b82f6', n.type==='vlan'?0.25:0.7));
+    r.setAttribute('fill', n.offline ? 'rgba(60,64,80,0.5)' : rgba(COL[n.type]||'#3b82f6', CONTAINER_TYPES.has(n.type)?0.25:0.7));
     layer.appendChild(r);
   });
 }
@@ -2035,19 +2514,33 @@ function validateAndSanitizeNode(raw) {
     ips = [sanitizeString(raw.ip.trim(), MAX_IP_LEN)];
   }
 
+  // Multi-name: support both new 'names' array and legacy single 'name' string
+  let names = [];
+  if (Array.isArray(raw.names)) {
+    names = raw.names.slice(0, MAX_NAMES).map(v => sanitizeString(v, MAX_NAME_LEN)).filter(Boolean);
+  } else if (typeof raw.name === 'string' && raw.name.trim()) {
+    names = [sanitizeString(raw.name.trim(), MAX_NAME_LEN)];
+  }
+  const primaryName = names[0] || sanitizeString(raw.name || type, MAX_NAME_LEN);
+  if (!names.length) names = [primaryName];
+
+  const layout = raw.layout === 'free' ? 'free' : 'compact';
+
   return {
     id,
     type,
     x: Math.max(-10000, Math.min(x, 100000)),
     y: Math.max(-10000, Math.min(y, 100000)),
     w, h,
-    name:  sanitizeString(raw.name  || type, MAX_NAME_LEN),
+    name: primaryName,
+    names,
     ip:    ips[0] || '',
     ips,
     vlan:  sanitizeString(raw.vlan  || '',   MAX_NAME_LEN),
     notes: sanitizeString(raw.notes || '',   MAX_NOTES_LEN),
     offline: raw.offline === true,
     excludeWeb: raw.excludeWeb === true,
+    layout,
     parentId,
     tags,
     infoTabs,
@@ -2070,6 +2563,14 @@ function validateAndSanitizeEdge(raw, nodeIds) {
       Number.isInteger(v) && nodeIds.has(v) && v !== from && v !== to && !seen.has(v) && seen.add(v)
     ).slice(0, 5);
   }
+  // Info tabs (same shape as node infoTabs)
+  let infoTabs = [];
+  if (Array.isArray(raw.infoTabs)) {
+    infoTabs = raw.infoTabs.slice(0, MAX_TABS).map(t => ({
+      title:   sanitizeString(t.title   || 'Info', MAX_NAME_LEN),
+      content: sanitizeString(t.content || '',     MAX_TAB_CONTENT_LEN)
+    }));
+  }
   return {
     id, from, to,
     colour:    validColours.has(raw.colour)    ? raw.colour    : 'default',
@@ -2077,6 +2578,7 @@ function validateAndSanitizeEdge(raw, nodeIds) {
     label:     sanitizeString(raw.label  || '', 40),
     notes:     sanitizeString(raw.notes  || '', 1000),
     via,
+    infoTabs,
   };
 }
 
@@ -2104,6 +2606,24 @@ function handleFileImport(e) {
         if (n.parentId === n.id) n.parentId = null;
       });
 
+      // Guard against multi-node parentId cycles (A inside B inside A, etc.)
+      // — these can't arise from normal drag-and-drop use (which is cycle-
+      // safe) but a hand-edited or corrupted JSON file could contain one,
+      // and that would hang the app the first time something in the loop
+      // gets dragged. Walk each node's ancestor chain and snip the link if
+      // it ever loops back on itself.
+      const byId = new Map(sanitizedNodes.map(n => [n.id, n]));
+      sanitizedNodes.forEach(n => {
+        const seen = new Set([n.id]);
+        let cur = n;
+        while (cur.parentId !== null) {
+          if (seen.has(cur.parentId)) { n.parentId = null; break; }
+          seen.add(cur.parentId);
+          cur = byId.get(cur.parentId);
+          if (!cur) break;
+        }
+      });
+
       const edgePairs = new Set();
       const sanitizedEdges = data.edges
         .map(raw => validateAndSanitizeEdge(raw, nodeIds))
@@ -2116,6 +2636,7 @@ function handleFileImport(e) {
       const maxNodeId = sanitizedNodes.reduce((m,n)=>Math.max(m,n.id), 0);
       const maxEdgeId = sanitizedEdges.reduce((m,e)=>Math.max(m,e.id), 0);
 
+      pushUndo();
       nodes   = sanitizedNodes;
       edges   = sanitizedEdges;
       mapName = sanitizeString(data.name || 'Imported', MAX_NAME_LEN);
@@ -2158,6 +2679,7 @@ function saveTagModal() {
   if (tagEditingId===null) return;
   const n=nodes.find(n=>n.id===tagEditingId);
   if (!n) { closeTagModal(); toast('Node was deleted','error'); return; }
+  pushUndo();
   tagModalState.forEach((tag,ti) => {
     const lineInputs = document.querySelectorAll(`.tag-line-input[data-tag="${ti}"]`);
     tag.lines = [...lineInputs].map(i=>i.value.trim()).filter(Boolean);
@@ -2169,7 +2691,7 @@ function saveTagModal() {
       type: t.type,
       lines: (t.lines||[]).slice(0, MAX_TAG_LINES).map(l => String(l).slice(0, MAX_TAG_LINE_LEN))
     }));
-  if (n.parentId) { reflowChildren(n.parentId); const vlan=nodes.find(v=>v.id===n.parentId); if(vlan){const sz=minVlanSize(getChildren(n.parentId),colsForVlan(vlan));vlan.w=sz.w;vlan.h=sz.h;} }
+  if (n.parentId) relayoutContainer(n.parentId);
   closeTagModal(); render(); toast('Tags saved','success');
 }
 
@@ -2290,6 +2812,8 @@ function renderTagModal() {
 let edgeEditingId = null;
 let edgeModalDir = 'none';
 let edgeModalVia = [];
+let edgeActiveTabIdx = -1;
+let edgeEditingTabs = [];
 
 function openEdgeModal(id) {
   const e = edges.find(e=>e.id===id);
@@ -2303,8 +2827,57 @@ function openEdgeModal(id) {
   renderEdgeDirBtns();
   renderEdgeViaSelect(e);
   renderEdgeViaChips();
+  edgeEditingTabs = (e.infoTabs||[]).map(t=>({title:t.title||'',content:t.content||''}));
+  edgeActiveTabIdx = edgeEditingTabs.length ? 0 : -1;
+  renderEdgeTabsBar();
   $('edge-modal-overlay').classList.add('show');
   $('edge-label-input').focus();
+}
+
+function renderEdgeTabsBar() {
+  const bar = $('edge-tabs-bar');
+  const editor = $('edge-tab-editor');
+  const empty = $('edge-tabs-empty');
+  bar.innerHTML='';
+  edgeEditingTabs.forEach((tab,i)=>{
+    const btn = document.createElement('button');
+    btn.textContent = tab.title||`Tab ${i+1}`;
+    btn.style.cssText=`font-size:10px;padding:3px 10px;border-radius:4px;cursor:pointer;border:1px solid;transition:all .15s;`
+      + (i===edgeActiveTabIdx
+        ? 'background:var(--accent2);border-color:var(--accent2);color:#000;font-weight:600;'
+        : 'background:var(--bg-card);border-color:var(--border);color:var(--text-sec);');
+    btn.onclick = ()=>{ flushActiveEdgeTab(); edgeActiveTabIdx=i; renderEdgeTabsBar(); };
+    bar.appendChild(btn);
+  });
+  if (edgeEditingTabs.length===0) {
+    editor.style.display='none'; empty.style.display='block';
+  } else {
+    editor.style.display='flex'; empty.style.display='none';
+    const tab = edgeEditingTabs[edgeActiveTabIdx]||{};
+    $('edge-tab-title').value = tab.title||'';
+    $('edge-tab-content').value = tab.content||'';
+  }
+}
+
+function flushActiveEdgeTab() {
+  if (edgeActiveTabIdx<0||edgeActiveTabIdx>=edgeEditingTabs.length) return;
+  edgeEditingTabs[edgeActiveTabIdx].title = $('edge-tab-title').value;
+  edgeEditingTabs[edgeActiveTabIdx].content = $('edge-tab-content').value;
+}
+
+function addEdgeInfoTab() {
+  flushActiveEdgeTab();
+  edgeEditingTabs.push({title:'',content:''});
+  edgeActiveTabIdx = edgeEditingTabs.length-1;
+  renderEdgeTabsBar();
+  $('edge-tab-title').focus();
+}
+
+function deleteActiveEdgeInfoTab() {
+  if (edgeActiveTabIdx<0) return;
+  edgeEditingTabs.splice(edgeActiveTabIdx,1);
+  edgeActiveTabIdx = Math.min(edgeActiveTabIdx, edgeEditingTabs.length-1);
+  renderEdgeTabsBar();
 }
 
 function renderEdgeViaSelect(e) {
@@ -2405,18 +2978,26 @@ function closeEdgeModal() {
   $('edge-modal-overlay').classList.remove('show');
   edgeEditingId = null;
   edgeModalVia = [];
+  edgeEditingTabs = [];
+  edgeActiveTabIdx = -1;
 }
 
 function saveEdgeModal() {
   if (edgeEditingId === null) return;
+  flushActiveEdgeTab();
   const e = edges.find(e=>e.id===edgeEditingId);
   if (!e) { closeEdgeModal(); toast('Connection was deleted','error'); return; }
+  pushUndo();
   const activeSwatch = $('edge-colour-row').querySelector('.edge-swatch.active');
   e.colour    = activeSwatch ? activeSwatch.dataset.id : 'default';
   e.direction = edgeModalDir;
   e.label     = $('edge-label-input').value.trim().slice(0, 40);
   e.notes     = $('edge-notes').value.trim().slice(0, 1000);
   e.via       = [...edgeModalVia];
+  e.infoTabs  = edgeEditingTabs
+    .filter(t=>t.title||t.content)
+    .slice(0, MAX_TABS)
+    .map(t=>({title:t.title.trim().slice(0,MAX_NAME_LEN)||'Info', content:t.content.slice(0,MAX_TAB_CONTENT_LEN)}));
   closeEdgeModal();
   render();
   toast('Connection saved','success');
@@ -2489,6 +3070,19 @@ function openNodeDetail(id) {
     mk.className = 'mk';
     mk.textContent = 'IP';
     const valNode = document.createTextNode(displayIps.join(', '));
+    span.appendChild(mk);
+    span.appendChild(valNode);
+    meta.appendChild(span);
+  }
+
+  // Additional names/aliases beyond the primary display name
+  const aliasNames = (n.names && n.names.length > 1) ? n.names.slice(1) : [];
+  if (aliasNames.length) {
+    const span = document.createElement('span');
+    const mk = document.createElement('span');
+    mk.className = 'mk';
+    mk.textContent = 'Aliases';
+    const valNode = document.createTextNode(aliasNames.join(', '));
     span.appendChild(mk);
     span.appendChild(valNode);
     meta.appendChild(span);
@@ -2638,6 +3232,7 @@ function openEdgeDetail(id) {
   const fn = nodes.find(n=>n.id===e.from), tn = nodes.find(n=>n.id===e.to);
   if (!fn||!tn) return;
   const col = edgeColourHex(e);
+  ndActiveTab = 0;
 
   // Select this edge and clear node selections so the map reflects the panel
   selectedNodes.clear(); highlightedEdges.clear(); selectedEdge = e.id;
@@ -2676,24 +3271,59 @@ function openEdgeDetail(id) {
     if (viaNames.length) addMeta('Via', viaNames.join(' \u2192 '));
   }
 
-  renderEdgeDetailBody(e);
+  renderEdgeDetailBody(e, col);
   $('node-detail').classList.add('show');
 }
 
-function renderEdgeDetailBody(e) {
+function renderEdgeDetailBody(e, col) {
   const body = $('nd-body');
   body.innerHTML = '';
-  const sec = document.createElement('div');
-  sec.className = 'nd-section';
-  const title = document.createElement('div');
-  title.className = 'nd-section-title';
-  title.textContent = 'Notes';
-  sec.appendChild(title);
-  const pre = document.createElement('pre');
-  pre.className = 'nd-info-pre';
-  pre.textContent = (e.notes && e.notes.trim()) ? e.notes : 'No notes recorded for this connection.';
-  sec.appendChild(pre);
-  body.appendChild(sec);
+  const tabs = e.infoTabs || [];
+  const tabLabels = ['Overview', ...tabs.map((t,i) => t.title || `Tab ${i+1}`)];
+
+  if (tabLabels.length > 1) {
+    const tabBar = document.createElement('div');
+    tabBar.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0;margin-bottom:4px;';
+    tabLabels.forEach((label, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.style.cssText = `font-size:10px;padding:4px 12px;border-radius:4px;cursor:pointer;border:1px solid;transition:all .15s;`
+        + (i===ndActiveTab
+          ? `background:${col};border-color:${col};color:#000;font-weight:600;`
+          : 'background:var(--bg-card);border-color:var(--border);color:var(--text-sec);');
+      btn.onclick = () => { ndActiveTab=i; renderEdgeDetailBody(e, col); };
+      tabBar.appendChild(btn);
+    });
+    body.appendChild(tabBar);
+  }
+
+  if (ndActiveTab === 0) {
+    const sec = document.createElement('div');
+    sec.className = 'nd-section';
+    const title = document.createElement('div');
+    title.className = 'nd-section-title';
+    title.textContent = 'Notes';
+    sec.appendChild(title);
+    const pre = document.createElement('pre');
+    pre.className = 'nd-info-pre';
+    pre.textContent = (e.notes && e.notes.trim()) ? e.notes : 'No notes recorded for this connection.';
+    sec.appendChild(pre);
+    body.appendChild(sec);
+  } else {
+    const tab = tabs[ndActiveTab-1];
+    if (tab) {
+      const sec = document.createElement('div');
+      sec.className = 'nd-section';
+      sec.style.flex = '1';
+      const pre = document.createElement('pre');
+      pre.className = 'nd-info-pre';
+      pre.style.flex = '1';
+      pre.style.minHeight = '200px';
+      pre.textContent = tab.content || '';
+      sec.appendChild(pre);
+      body.appendChild(sec);
+    }
+  }
 }
 
 function closeNodeDetail() {
@@ -2729,7 +3359,8 @@ function closeRenameModal() {
 
 function saveRenameModal() {
   const name = $('rename-input').value.trim().slice(0, MAX_NAME_LEN);
-  if (name) {
+  if (name && name !== mapName) {
+    pushUndo();
     mapName = name;
     $('map-name-display').textContent = mapName;
     toast('Renamed','info');
@@ -2758,8 +3389,9 @@ function showConfirmModal(msg) {
 
 async function clearAll() {
   if(!nodes.length&&!edges.length) return;
-  const ok = await showConfirmModal('Clear the entire map? This cannot be undone.');
+  const ok = await showConfirmModal('Clear the entire map?');
   if(!ok) return;
+  pushUndo();
   nodes=[];edges=[];selectedNodes.clear();selectedEdge=null;render();toast('Cleared','info');
 }
 
@@ -2788,11 +3420,11 @@ async function clearAll() {
   const ws=addNode('workstation',540,330,false);
   ws.name='dev-ws-01'; ws.ips=['10.0.4.20/24','172.16.0.5/24']; ws.ip='10.0.4.20/24'; ws.offline=true;
 
-  edges.push({id:nextId++,from:fw.id,to:rt.id,colour:'default',direction:'both',label:'',notes:'',via:[]});
-  edges.push({id:nextId++,from:fw.id,to:sw.id,colour:'default',direction:'both',label:'',notes:'',via:[]});
-  edges.push({id:nextId++,from:rt.id,to:vl.id,colour:'green',direction:'forward',label:'VLAN 10',notes:'',via:[]});
-  edges.push({id:nextId++,from:sw.id,to:ws.id,colour:'default',direction:'none',label:'',notes:'',via:[]});
-  edges.push({id:nextId++,from:rt.id,to:sw.id,colour:'cyan',direction:'both',label:'Trunk',notes:'',via:[]});
+  edges.push({id:nextId++,from:fw.id,to:rt.id,colour:'default',direction:'both',label:'',notes:'',via:[],infoTabs:[]});
+  edges.push({id:nextId++,from:fw.id,to:sw.id,colour:'default',direction:'both',label:'',notes:'',via:[],infoTabs:[]});
+  edges.push({id:nextId++,from:rt.id,to:vl.id,colour:'green',direction:'forward',label:'VLAN 10',notes:'',via:[],infoTabs:[]});
+  edges.push({id:nextId++,from:sw.id,to:ws.id,colour:'default',direction:'none',label:'',notes:'',via:[],infoTabs:[]});
+  edges.push({id:nextId++,from:rt.id,to:sw.id,colour:'cyan',direction:'both',label:'Trunk',notes:'',via:[],infoTabs:[]});
 
   render(); fitToScreen();
 })();
