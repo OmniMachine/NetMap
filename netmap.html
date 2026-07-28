@@ -143,7 +143,10 @@
   /* MODAL */
   #modal-overlay { position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; backdrop-filter:blur(2px); }
   #modal-overlay.show { display:flex; }
-  #modal { background:var(--bg-panel); border:1px solid var(--border-hi); border-radius:10px; padding:24px; min-width:360px; max-width:440px; box-shadow:0 24px 64px rgba(0,0,0,.8); }
+  #modal { background:var(--bg-panel); border:1px solid var(--border-hi); border-radius:10px; padding:24px; min-width:360px; max-width:440px; max-height:88vh; overflow-y:auto; box-shadow:0 24px 64px rgba(0,0,0,.8); }
+  #modal::-webkit-scrollbar { width:5px; }
+  #modal::-webkit-scrollbar-track { background:transparent; }
+  #modal::-webkit-scrollbar-thumb { background:var(--border-hi); border-radius:3px; }
   #modal h3 { font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--accent2); margin-bottom:18px; display:flex; align-items:center; gap:8px; }
   .form-row { margin-bottom:14px; }
   .form-row label { display:block; font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--text-dim); margin-bottom:5px; }
@@ -214,7 +217,10 @@
   /* TAG MODAL */
   #tag-modal-overlay { position:fixed; inset:0; z-index:2100; background:rgba(0,0,0,.75); display:none; align-items:center; justify-content:center; backdrop-filter:blur(2px); }
   #tag-modal-overlay.show { display:flex; }
-  #tag-modal { background:var(--bg-panel); border:1px solid var(--border-hi); border-radius:10px; padding:24px; min-width:380px; max-width:480px; box-shadow:0 24px 64px rgba(0,0,0,.8); }
+  #tag-modal { background:var(--bg-panel); border:1px solid var(--border-hi); border-radius:10px; padding:24px; min-width:380px; max-width:480px; max-height:88vh; overflow-y:auto; box-shadow:0 24px 64px rgba(0,0,0,.8); }
+  #tag-modal::-webkit-scrollbar { width:5px; }
+  #tag-modal::-webkit-scrollbar-track { background:transparent; }
+  #tag-modal::-webkit-scrollbar-thumb { background:var(--border-hi); border-radius:3px; }
   #tag-modal h3 { font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--accent2); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
   .tag-list { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; max-height:320px; overflow-y:auto; }
   .tag-row { background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
@@ -244,7 +250,10 @@
   /* EDGE DETAIL MODAL */
   #edge-modal-overlay { position:fixed; inset:0; z-index:2100; background:rgba(0,0,0,.75); display:none; align-items:center; justify-content:center; backdrop-filter:blur(2px); }
   #edge-modal-overlay.show { display:flex; }
-  #edge-modal { background:var(--bg-panel); border:1px solid var(--border-hi); border-radius:10px; padding:24px; min-width:380px; max-width:480px; box-shadow:0 24px 64px rgba(0,0,0,.8); }
+  #edge-modal { background:var(--bg-panel); border:1px solid var(--border-hi); border-radius:10px; padding:24px; min-width:380px; max-width:480px; max-height:88vh; overflow-y:auto; box-shadow:0 24px 64px rgba(0,0,0,.8); }
+  #edge-modal::-webkit-scrollbar { width:5px; }
+  #edge-modal::-webkit-scrollbar-track { background:transparent; }
+  #edge-modal::-webkit-scrollbar-thumb { background:var(--border-hi); border-radius:3px; }
   #edge-modal h3 { font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--accent2); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
   .edge-colour-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:4px; }
   .edge-dir-row { display:flex; gap:6px; flex-wrap:wrap; }
@@ -438,6 +447,7 @@
   <div class="ctx-item" id="ctx-offline" onclick="ctxToggleOffline()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span id="ctx-offline-label">Toggle Offline</span></div>
   <div class="ctx-item" id="ctx-web-exclude" onclick="ctxToggleWebExclude()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="7" y1="7" x2="17" y2="17"/><line x1="17" y1="7" x2="7" y2="17"/></svg><span id="ctx-web-exclude-label">Exclude from Web</span></div>
   <div class="ctx-item" id="ctx-layout" onclick="ctxToggleLayout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><path d="M10 6.5h4a2 2 0 012 2v6" stroke-dasharray="2,1.5"/></svg><span id="ctx-layout-label">Switch to Free Layout</span></div>
+  <div class="ctx-item" id="ctx-expand" onclick="ctxToggleExpand()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg><span id="ctx-expand-label">Expand Node</span></div>
   <div class="ctx-item" id="ctx-edge-edit" onclick="ctxEdgeEdit()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="15 8 19 12 15 16"/><circle cx="5" cy="12" r="2"/></svg>Edit Connection</div>
   <div class="ctx-sep"></div>
   <div class="ctx-item danger" id="ctx-del" onclick="ctxDel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>Delete</div>
@@ -663,12 +673,12 @@ const MAX_NAME_LEN = 120;
 const MAX_IP_LEN   = 50;
 const MAX_NOTES_LEN = 500;
 const MAX_TAB_CONTENT_LEN = 20000;
-const MAX_TABS = 20;
+const MAX_TABS = 200;      // safety net only — was silently truncating past 20 with no UI warning
 const MAX_TAGS = 10;
-const MAX_TAG_LINES = 20;
+const MAX_TAG_LINES = 200; // safety net only
 const MAX_TAG_LINE_LEN = 200;
-const MAX_IPS = 8;
-const MAX_NAMES = 5;
+const MAX_IPS = 200;   // safety net for import only — no UI-imposed limit
+const MAX_NAMES = 200; // safety net for import only — no UI-imposed limit
 
 // Container node types (support holding child nodes via parentId)
 const CONTAINER_TYPES = new Set(['vlan','site','group']);
@@ -1346,7 +1356,8 @@ function buildRegular(g,n,W,H,col,sel) {
   g.appendChild(bar);
 
   const ig=svgEl('g');
-  ig.setAttribute('transform',`translate(12,${Math.round(H/2-8)})`);
+  const iconY = n.expanded ? 12 : Math.round(H/2-8);
+  ig.setAttribute('transform',`translate(12,${iconY})`);
   ig.setAttribute('stroke', n.offline ? '#4a5568' : col); ig.setAttribute('fill','none');
   ig.innerHTML=(ICONS[n.type]||'').replace(/fill="COL"/g,`fill="${n.offline ? '#4a5568' : col}"`);
   g.appendChild(ig);
@@ -1366,24 +1377,46 @@ function buildRegular(g,n,W,H,col,sel) {
     g.appendChild(badge);
   }
 
-  // IPs (first one shown, +N if more)
+  // IPs (first one shown, +N if more — unless expanded, which lists all)
   const ips = n.ips && n.ips.length ? n.ips : (n.ip ? [n.ip] : []);
   const hasIp = ips.length > 0;
   const ipFill = n.offline ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.5)';
   const nameFill = n.offline ? 'rgba(255,255,255,.45)' : '#fff';
-  const ny = hasIp ? Math.round(H/2)-4 : Math.round(H/2)+4;
   const names = n.names && n.names.length ? n.names : (n.name ? [n.name] : ['Node']);
-  const nameSuffix = names.length > 1 ? ` +${names.length-1}` : '';
-  const nameMaxChars = Math.floor((W-44)/7) - nameSuffix.length;
-  const nameEl = txt(11, nameFill, 36, ny, trunc(names[0]||'Node', nameMaxChars) + nameSuffix);
-  nameEl.setAttribute('font-weight','500');
-  g.appendChild(nameEl);
 
-  if (hasIp) {
-    const suffix = ips.length > 1 ? ` +${ips.length-1}` : '';
-    const maxChars = Math.floor((W-44)/6) - suffix.length;
-    const ipText = trunc(ips[0], maxChars) + suffix;
-    g.appendChild(txt(9, ipFill, 36, ny+13, ipText));
+  if (n.expanded) {
+    // Dropped below the icon row and centered, rather than squeezed
+    // beside the icon the way the single-line compact view is.
+    const LINE_H = 13;
+    let ly = 38;
+    const maxChars = Math.floor((W-20)/6);
+    names.forEach((nm, i) => {
+      const t = txt(10, i===0 ? nameFill : 'rgba(255,255,255,.75)', W/2, ly, trunc(nm, maxChars));
+      t.setAttribute('text-anchor','middle');
+      if (i===0) t.setAttribute('font-weight','500');
+      g.appendChild(t);
+      ly += LINE_H;
+    });
+    ips.forEach(ip => {
+      const t = txt(9, ipFill, W/2, ly, trunc(ip, maxChars));
+      t.setAttribute('text-anchor','middle');
+      g.appendChild(t);
+      ly += LINE_H;
+    });
+  } else {
+    const ny = hasIp ? Math.round(H/2)-4 : Math.round(H/2)+4;
+    const nameSuffix = names.length > 1 ? ` +${names.length-1}` : '';
+    const nameMaxChars = Math.floor((W-44)/7) - nameSuffix.length;
+    const nameEl = txt(11, nameFill, 36, ny, trunc(names[0]||'Node', nameMaxChars) + nameSuffix);
+    nameEl.setAttribute('font-weight','500');
+    g.appendChild(nameEl);
+
+    if (hasIp) {
+      const suffix = ips.length > 1 ? ` +${ips.length-1}` : '';
+      const maxChars = Math.floor((W-44)/6) - suffix.length;
+      const ipText = trunc(ips[0], maxChars) + suffix;
+      g.appendChild(txt(9, ipFill, 36, ny+13, ipText));
+    }
   }
 
   if (n.notes && !n.offline) {
@@ -1399,6 +1432,34 @@ function buildRegular(g,n,W,H,col,sel) {
     wb.setAttribute('text-anchor','end');
     g.appendChild(wb);
   }
+}
+
+// Shared expand/collapse affordance for any node with names/IPs — shows a
+// Computes the box height needed to show every name and IP inline when a
+// node is expanded (header row + one line per name/IP + bottom padding).
+function computeExpandedHeight(n) {
+  const names = (n.names && n.names.length) ? n.names : (n.name ? [n.name] : []);
+  const ips = (n.ips && n.ips.length) ? n.ips : (n.ip ? [n.ip] : []);
+  const HEADER = 32, LINE_H = 13, PAD_BOTTOM = 12;
+  return HEADER + (names.length + ips.length) * LINE_H + PAD_BOTTOM;
+}
+
+function toggleNodeExpand(id) {
+  const n = nodes.find(n=>n.id===id);
+  if (!n || CONTAINER_TYPES.has(n.type)) return;
+  pushUndo();
+  if (n.expanded) {
+    n.h = n.collapsedH || DEF_H[n.type] || 60;
+    n.collapsedH = null;
+    n.expanded = false;
+  } else {
+    n.collapsedH = n.h;
+    n.h = Math.max(n.h, computeExpandedHeight(n));
+    n.expanded = true;
+  }
+  if (n.parentId) relayoutContainer(n.parentId);
+  render();
+  toast(n.expanded ? 'Node expanded' : 'Node collapsed', 'info');
 }
 
 function renderEdges() {
@@ -1890,6 +1951,8 @@ function addNode(type,x,y,doRender=true) {
     ip:'', ips:[], vlan:'', notes:'', infoTabs:[], parentId:null, tags:[], offline:false,
     excludeWeb: CONTAINER_TYPES.has(type),
     layout: CONTAINER_TYPES.has(type) ? 'compact' : undefined,
+    expanded: false,
+    collapsedH: null,
   };
   nodes.push(n); if(doRender) render(); return n;
 }
@@ -1974,6 +2037,8 @@ function showCtx(e,type,id) {
   const n = isNode ? nodes.find(n=>n.id===id) : null;
   const isFreeCapable = !!n && CONTAINER_TYPES.has(n.type);
   $('ctx-layout').style.display = isFreeCapable ? 'flex' : 'none';
+  const isExpandCapable = !!n && !CONTAINER_TYPES.has(n.type);
+  $('ctx-expand').style.display = isExpandCapable ? 'flex' : 'none';
   if (isNode) {
     const offlineLabel = $('ctx-offline-label');
     if (offlineLabel) offlineLabel.textContent = n?.offline ? 'Mark Online' : 'Toggle Offline';
@@ -1982,6 +2047,10 @@ function showCtx(e,type,id) {
     if (isFreeCapable) {
       const layoutLabel = $('ctx-layout-label');
       if (layoutLabel) layoutLabel.textContent = n.layout==='free' ? 'Switch to Compact Layout' : 'Switch to Free Layout';
+    }
+    if (isExpandCapable) {
+      const expandLabel = $('ctx-expand-label');
+      if (expandLabel) expandLabel.textContent = n.expanded ? 'Collapse Node' : 'Expand Node';
     }
   }
 
@@ -2028,6 +2097,12 @@ function ctxToggleLayout() {
     toast(n.layout==='free' ? 'Switched to free layout' : 'Switched to compact layout', 'info');
   }
   hideCtx();
+}
+function ctxToggleExpand() {
+  if (!ctxTarget || ctxTarget.type !== 'node') return;
+  const id = ctxTarget.id;
+  hideCtx();
+  toggleNodeExpand(id);
 }
 function ctxDel()  {
   if(!ctxTarget) return;
@@ -2083,7 +2158,6 @@ function renderIpRows(ips) {
 
 function addIpRow() {
   const container = $('f-ips-container');
-  if (container.querySelectorAll('.ip-row').length >= MAX_IPS) { toast(`Max ${MAX_IPS} IPs per node`,'info'); return; }
   const row = document.createElement('div');
   row.className = 'ip-row';
   const input = document.createElement('input');
@@ -2133,7 +2207,6 @@ function renderNameRows(names) {
 
 function addNameRow() {
   const container = $('f-names-container');
-  if (container.querySelectorAll('.ip-row').length >= MAX_NAMES) { toast(`Max ${MAX_NAMES} names per node`,'info'); return; }
   const row = document.createElement('div');
   row.className = 'ip-row';
   const input = document.createElement('input');
@@ -2306,11 +2379,11 @@ function saveModal() {
   const safeType = ALLOWED_TYPES.has(nt) ? nt : n.type;
   // Collect names
   const nameInputs = $('f-names-container').querySelectorAll('input');
-  n.names = [...nameInputs].map(i=>i.value.trim().slice(0,MAX_NAME_LEN)).filter(Boolean).slice(0,MAX_NAMES);
+  n.names = [...nameInputs].map(i=>i.value.trim().slice(0,MAX_NAME_LEN)).filter(Boolean);
   n.name = n.names[0] || n.name || safeType;
   // Collect IPs
   const ipInputs = $('f-ips-container').querySelectorAll('input');
-  n.ips = [...ipInputs].map(i=>i.value.trim().slice(0,MAX_IP_LEN)).filter(Boolean).slice(0,MAX_IPS);
+  n.ips = [...ipInputs].map(i=>i.value.trim().slice(0,MAX_IP_LEN)).filter(Boolean);
   n.ip = n.ips[0] || '';
   n.offline = !!$('f-offline').checked;
   n.excludeWeb = !!$('f-web-exclude').checked;
@@ -2323,6 +2396,11 @@ function saveModal() {
   if(safeType!==n.type){n.type=safeType;n.w=DEF_W[safeType];n.h=DEF_H[safeType];}
   if (CONTAINER_TYPES.has(n.type)) {
     n.layout = $('f-layout').checked ? 'free' : 'compact';
+  }
+  if (n.expanded && !CONTAINER_TYPES.has(n.type)) {
+    // Names/IPs may have just changed — resize immediately to fit rather
+    // than waiting for a collapse/expand round-trip.
+    n.h = Math.max(n.collapsedH || DEF_H[n.type] || 60, computeExpandedHeight(n));
   }
   if(n.parentId) relayoutContainer(n.parentId);
   if (CONTAINER_TYPES.has(n.type)) relayoutContainer(n.id);
@@ -2453,6 +2531,28 @@ function updateMinimap() {
     r.setAttribute('fill', n.offline ? 'rgba(60,64,80,0.5)' : rgba(COL[n.type]||'#3b82f6', CONTAINER_TYPES.has(n.type)?0.25:0.7));
     layer.appendChild(r);
   });
+
+  // Viewport indicator — the slice of the map currently visible on screen,
+  // kept in sync via applyVT() so it tracks pan/zoom (including the
+  // animated zoom used when focusing a node in presentation mode).
+  const wrap = $('canvas-wrap');
+  if (wrap && vt.s > 0) {
+    const W = wrap.clientWidth, H = wrap.clientHeight;
+    const worldX = -vt.x / vt.s, worldY = -vt.y / vt.s;
+    const worldW = W / vt.s, worldH = H / vt.s;
+    const vr = svgEl('rect');
+    vr.setAttribute('x', pad + (worldX - mnX) * sc);
+    vr.setAttribute('y', pad + (worldY - mnY) * sc);
+    vr.setAttribute('width', Math.max(2, worldW * sc));
+    vr.setAttribute('height', Math.max(2, worldH * sc));
+    vr.setAttribute('rx', 1);
+    vr.setAttribute('fill', 'rgba(59,130,246,0.12)');
+    vr.setAttribute('stroke', '#3b82f6');
+    vr.setAttribute('stroke-width', 1);
+    vr.setAttribute('vector-effect', 'non-scaling-stroke');
+    vr.setAttribute('pointer-events', 'none');
+    layer.appendChild(vr);
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -2540,6 +2640,8 @@ function validateAndSanitizeNode(raw) {
     notes: sanitizeString(raw.notes || '',   MAX_NOTES_LEN),
     offline: raw.offline === true,
     excludeWeb: raw.excludeWeb === true,
+    expanded: raw.expanded === true,
+    collapsedH: typeof raw.collapsedH === 'number' && isFinite(raw.collapsedH) ? raw.collapsedH : null,
     layout,
     parentId,
     tags,
