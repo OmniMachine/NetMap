@@ -1,0 +1,17 @@
+[default]
+address   = "0.0.0.0"
+port      = 443
+log_level = "normal"
+
+[default.tls]
+certs = "certs/cert.pem"   # path to your certificate (or chain)
+key   = "certs/key.pem"    # path to your private key
+
+[release]
+address   = "0.0.0.0"
+port      = 443
+log_level = "critical"
+
+[release.tls]
+certs = "certs/cert.pem"
+key   = "certs/key.pem"
