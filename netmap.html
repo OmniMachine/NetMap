@@ -1,0 +1,2033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetMap — Network Topology Editor</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-base:     #0b0e13;
+    --bg-surface:  #111520;
+    --bg-panel:    #161b27;
+    --bg-card:     #1c2334;
+    --border:      #252d3d;
+    --border-hi:   #2e3a52;
+    --text-pri:    #c8d4e8;
+    --text-sec:    #6b7a96;
+    --text-dim:    #404a60;
+    --accent:      #3b82f6;
+    --accent-glow: rgba(59,130,246,0.18);
+    --accent2:     #22d3ee;
+    --green:       #10b981;
+    --red:         #ef4444;
+  }
+
+  html, body { width:100%; height:100%; overflow:hidden; background:var(--bg-base); color:var(--text-pri); font-family:'JetBrains Mono',monospace; }
+  #app { display:flex; flex-direction:column; height:100vh; }
+
+  /* TOPBAR */
+  #topbar { display:flex; align-items:center; height:48px; padding:0 16px; background:var(--bg-surface); border-bottom:1px solid var(--border); flex-shrink:0; user-select:none; gap:0; }
+  #logo { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:20px; letter-spacing:3px; color:var(--accent2); margin-right:24px; text-transform:uppercase; display:flex; align-items:center; gap:8px; }
+  #logo svg { width:22px; height:22px; }
+  .logo-dot { color:var(--accent); }
+  .mode-btn { height:48px; padding:0 18px; border:none; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:500; letter-spacing:1.5px; text-transform:uppercase; background:transparent; color:var(--text-sec); border-bottom:2px solid transparent; transition:all .15s; }
+  .mode-btn:hover { color:var(--text-pri); background:rgba(255,255,255,.03); }
+  .mode-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .tb-sep { width:1px; height:28px; background:var(--border); margin:0 8px; }
+  .tb-spacer { flex:1; }
+  .tb-btn { display:flex; align-items:center; gap:6px; height:32px; padding:0 12px; background:var(--bg-card); border:1px solid var(--border); color:var(--text-sec); font-family:inherit; font-size:11px; letter-spacing:1px; text-transform:uppercase; cursor:pointer; border-radius:4px; transition:all .15s; white-space:nowrap; }
+  .tb-btn:hover { border-color:var(--border-hi); color:var(--text-pri); background:var(--bg-panel); }
+  .tb-btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .tb-btn.primary:hover { background:#2563eb; }
+  .tb-btn svg { width:13px; height:13px; flex-shrink:0; }
+  #tb-right { display:flex; align-items:center; gap:8px; }
+  #map-name-display { font-size:12px; color:var(--text-sec); border:1px solid transparent; padding:4px 8px; border-radius:4px; cursor:pointer; transition:all .15s; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #map-name-display:hover { border-color:var(--border); color:var(--text-pri); }
+
+  /* WORKSPACE */
+  #workspace { display:flex; flex:1; overflow:hidden; }
+
+  /* SIDEBAR */
+  #sidebar { width:220px; flex-shrink:0; background:var(--bg-panel); border-right:1px solid var(--border); display:flex; flex-direction:column; transition:width .2s,opacity .2s; overflow:hidden; }
+  #sidebar.hidden { width:0; opacity:0; pointer-events:none; }
+  .sidebar-section { padding:12px 14px 8px; border-bottom:1px solid var(--border); }
+  .sidebar-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); margin-bottom:10px; font-weight:600; }
+  .node-palette { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .palette-item { display:flex; flex-direction:column; align-items:center; gap:5px; padding:8px 4px; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; cursor:grab; transition:all .15s; font-size:9px; letter-spacing:.5px; text-transform:uppercase; color:var(--text-sec); user-select:none; }
+  .palette-item:hover { border-color:var(--border-hi); color:var(--text-pri); transform:translateY(-1px); }
+  .palette-item:active { cursor:grabbing; }
+  .palette-icon { width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; }
+  .palette-icon svg { width:16px; height:16px; }
+  .tool-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .tool-btn { display:flex; align-items:center; justify-content:center; gap:5px; padding:7px; background:var(--bg-card); border:1px solid var(--border); border-radius:5px; cursor:pointer; font-family:inherit; font-size:9px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-sec); transition:all .15s; white-space:nowrap; }
+  .tool-btn:hover { border-color:var(--border-hi); color:var(--text-pri); }
+  .tool-btn.active { border-color:var(--accent); color:var(--accent); background:var(--accent-glow); }
+  .tool-btn svg { width:12px; height:12px; }
+  .tool-btn.full { grid-column:1/-1; justify-content:flex-start; padding:7px 10px; gap:8px; font-size:10px; }
+
+  /* CANVAS */
+  #canvas-wrap {
+    flex:1; position:relative; overflow:hidden; background:var(--bg-base);
+    background-image:
+      radial-gradient(ellipse 60% 50% at 70% 30%, rgba(59,130,246,.04) 0%, transparent 60%),
+      linear-gradient(rgba(37,45,61,.4) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(37,45,61,.4) 1px, transparent 1px);
+    background-size:100% 100%, 32px 32px, 32px 32px;
+  }
+  #svg-canvas { position:absolute; top:0; left:0; width:100%; height:100%; overflow:visible; }
+
+  /* NODES */
+  .node-group { cursor:move; user-select:none; }
+  .node-group.locked { cursor:default; }
+  .node-label { font-family:'JetBrains Mono',monospace; font-size:11px; fill:#fff; font-weight:500; }
+  .node-sub   { font-family:'JetBrains Mono',monospace; font-size:9px;  fill:rgba(255,255,255,.55); }
+  .node-badge { font-family:'Rajdhani',sans-serif; font-size:8px; letter-spacing:1.5px; text-transform:uppercase; fill:rgba(255,255,255,.4); }
+
+  /* EDGES */
+  .edge-line { stroke-width:1.5; stroke-linecap:round; fill:none; }
+  .edge-line.selected { stroke-width:2.5; }
+  .edge-hit  { stroke-width:14; stroke:transparent; fill:none; cursor:pointer; }
+
+  /* RESIZE HANDLES */
+  .rh { fill:#0b0e13; stroke:var(--accent); stroke-width:1.5; }
+  .rh.nw,.rh.se { cursor:nwse-resize; }
+  .rh.ne,.rh.sw { cursor:nesw-resize; }
+  .rh.n,.rh.s   { cursor:ns-resize; }
+  .rh.e,.rh.w   { cursor:ew-resize; }
+
+  /* PORT DOTS */
+  .port-dot { fill:#0b0e13; stroke:var(--accent); stroke-width:1.5; cursor:inherit; pointer-events:none; }
+  .port-dot:hover { fill:var(--accent); }
+
+  /* VLAN drop highlight */
+  .vlan-hi { filter:drop-shadow(0 0 8px rgba(168,85,247,.5)); }
+
+  /* MINIMAP */
+  #minimap { position:absolute; bottom:16px; right:16px; width:180px; height:120px; background:var(--bg-panel); border:1px solid var(--border); border-radius:6px; overflow:hidden; }
+  #minimap-svg { width:100%; height:100%; }
+
+  /* STATUS BAR */
+  #statusbar { height:24px; padding:0 16px; background:var(--bg-surface); border-top:1px solid var(--border); display:flex; align-items:center; gap:20px; font-size:10px; color:var(--text-dim); letter-spacing:.5px; flex-shrink:0; }
+  #statusbar span { display:flex; align-items:center; gap:5px; }
+  .stat-dot { width:5px; height:5px; border-radius:50%; background:var(--green); }
+
+  /* CONTEXT MENU */
+  #ctx-menu { position:fixed; z-index:1000; background:var(--bg-panel); border:1px solid var(--border-hi); border-radius:6px; padding:4px; min-width:160px; box-shadow:0 8px 32px rgba(0,0,0,.6); display:none; }
+  .ctx-item { display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:4px; cursor:pointer; font-size:11px; color:var(--text-sec); transition:all .1s; }
+  .ctx-item:hover { background:var(--bg-card); color:var(--text-pri); }
+  .ctx-item.danger:hover { background:rgba(239,68,68,.1); color:var(--red); }
+  .ctx-sep { height:1px; background:var(--border); margin:3px 0; }
+  .ctx-item svg { width:12px; height:12px; opacity:.7; }
+
+  /* MODAL */
+  #modal-overlay { position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; backdrop-filter:blur(2px); }
+  #modal-overlay.show { display:flex; }
+  #modal { background:var(--bg-panel); border:1px solid var(--border-hi); border-radius:10px; padding:24px; min-width:360px; max-width:440px; box-shadow:0 24px 64px rgba(0,0,0,.8); }
+  #modal h3 { font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--accent2); margin-bottom:18px; display:flex; align-items:center; gap:8px; }
+  .form-row { margin-bottom:14px; }
+  .form-row label { display:block; font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--text-dim); margin-bottom:5px; }
+  .form-row input,.form-row select { width:100%; background:var(--bg-card); border:1px solid var(--border); border-radius:5px; color:var(--text-pri); font-family:inherit; font-size:12px; padding:8px 10px; outline:none; transition:border-color .15s; }
+  .form-row input:focus,.form-row select:focus { border-color:var(--accent); }
+  .form-row select option { background:var(--bg-panel); }
+  .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+  .modal-btn { padding:8px 18px; border-radius:5px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-sec); cursor:pointer; font-family:inherit; font-size:11px; transition:all .15s; }
+  .modal-btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .modal-btn.primary:hover { background:#2563eb; }
+
+  /* RENAME MODAL */
+  #rename-modal-overlay { position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; backdrop-filter:blur(2px); }
+  #rename-modal-overlay.show { display:flex; }
+  #rename-modal { background:var(--bg-panel); border:1px solid var(--border-hi); border-radius:10px; padding:24px; min-width:320px; box-shadow:0 24px 64px rgba(0,0,0,.8); }
+  #rename-modal h3 { font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--accent2); margin-bottom:16px; }
+
+  /* TOAST */
+  #toast-wrap { position:fixed; bottom:36px; left:50%; transform:translateX(-50%); z-index:3000; display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+  .toast { background:var(--bg-panel); border:1px solid var(--border-hi); border-radius:6px; padding:10px 16px; font-size:11px; color:var(--text-pri); box-shadow:0 8px 24px rgba(0,0,0,.6); animation:toastIn .2s ease; white-space:nowrap; }
+  .toast.success { border-left:3px solid var(--green); }
+  .toast.error   { border-left:3px solid var(--red); }
+  .toast.info    { border-left:3px solid var(--accent); }
+  @keyframes toastIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+  /* ZOOM */
+  #zoom-ctrl { position:absolute; bottom:16px; left:16px; display:flex; flex-direction:column; gap:4px; }
+  .zoom-btn { width:32px; height:32px; background:var(--bg-panel); border:1px solid var(--border); border-radius:5px; color:var(--text-sec); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; font-family:monospace; }
+  .zoom-btn:hover { color:var(--text-pri); border-color:var(--border-hi); }
+  #zoom-label { font-size:9px; text-align:center; color:var(--text-dim); }
+
+  /* EDGE HINT */
+  #edge-hint { position:absolute; top:12px; left:50%; transform:translateX(-50%); background:rgba(59,130,246,.15); border:1px solid var(--accent); border-radius:20px; padding:5px 16px; font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--accent2); pointer-events:none; display:none; }
+
+  /* LEGEND */
+  #legend { position:absolute; top:16px; left:16px; background:var(--bg-panel); border:1px solid var(--border); border-radius:8px; padding:12px 14px; display:none; min-width:140px; }
+  #legend.show { display:block; }
+  #legend h4 { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); margin-bottom:8px; }
+  .legend-item { display:flex; align-items:center; gap:8px; font-size:10px; color:var(--text-sec); margin-bottom:5px; }
+  .legend-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+
+  /* NODE DETAIL OVERLAY (presentation mode) */
+  #node-detail { position:fixed; top:0; right:-520px; width:500px; height:100vh; background:var(--bg-panel); border-left:1px solid var(--border-hi); display:flex; flex-direction:column; z-index:1500; transition:right .3s cubic-bezier(.4,0,.2,1); box-shadow:-8px 0 40px rgba(0,0,0,.6); }
+  #node-detail.show { right:0; }
+  #nd-header { padding:20px 24px 16px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  #nd-close { position:absolute; top:16px; right:16px; background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:20px; line-height:1; padding:4px 8px; border-radius:4px; transition:all .15s; }
+  #nd-close:hover { color:var(--text-pri); background:var(--bg-card); }
+  #nd-type-badge { font-family:'Rajdhani',sans-serif; font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; }
+  #nd-name { font-family:'Rajdhani',sans-serif; font-size:24px; font-weight:600; color:#fff; margin-bottom:4px; }
+  #nd-meta { font-size:11px; color:var(--text-sec); display:flex; flex-direction:column; gap:3px; margin-top:8px; }
+  #nd-meta span { display:flex; gap:8px; }
+  #nd-meta .mk { color:var(--text-dim); min-width:40px; }
+  #nd-body { flex:1; overflow-y:auto; padding:20px 24px; display:flex; flex-direction:column; gap:16px; }
+  #nd-body::-webkit-scrollbar { width:4px; }
+  #nd-body::-webkit-scrollbar-track { background:transparent; }
+  #nd-body::-webkit-scrollbar-thumb { background:var(--border-hi); border-radius:2px; }
+  .nd-section { display:flex; flex-direction:column; gap:8px; }
+  .nd-section-title { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); font-weight:600; border-bottom:1px solid var(--border); padding-bottom:6px; }
+  .nd-info-pre { background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:12px 14px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-sec); white-space:pre-wrap; word-break:break-all; line-height:1.7; min-height:60px; }
+  .nd-tag-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:4px; font-size:10px; font-weight:500; margin:2px; }
+
+  #file-input { display:none; }
+
+  /* TAG BADGES */
+  .tag-badge-group { cursor:pointer; }
+  .tag-badge-bg { rx:4; }
+
+  /* TAG MODAL */
+  #tag-modal-overlay { position:fixed; inset:0; z-index:2100; background:rgba(0,0,0,.75); display:none; align-items:center; justify-content:center; backdrop-filter:blur(2px); }
+  #tag-modal-overlay.show { display:flex; }
+  #tag-modal { background:var(--bg-panel); border:1px solid var(--border-hi); border-radius:10px; padding:24px; min-width:380px; max-width:480px; box-shadow:0 24px 64px rgba(0,0,0,.8); }
+  #tag-modal h3 { font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--accent2); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+  .tag-list { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; max-height:320px; overflow-y:auto; }
+  .tag-row { background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
+  .tag-row-header { display:flex; align-items:center; justify-content:space-between; }
+  .tag-row-type { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--text-pri); font-weight:500; }
+  .tag-type-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .tag-del-btn { background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:14px; line-height:1; padding:2px 4px; border-radius:3px; }
+  .tag-del-btn:hover { color:var(--red); background:rgba(239,68,68,.1); }
+  .tag-lines-area { display:flex; flex-direction:column; gap:4px; }
+  .tag-line-row { display:flex; gap:6px; align-items:center; }
+  .tag-line-row input { flex:1; background:var(--bg-surface); border:1px solid var(--border); border-radius:4px; color:var(--text-pri); font-family:inherit; font-size:11px; padding:5px 8px; outline:none; }
+  .tag-line-row input:focus { border-color:var(--accent); }
+  .tag-line-del { background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:12px; padding:2px 5px; border-radius:3px; }
+  .tag-line-del:hover { color:var(--red); }
+  .tag-add-line { background:none; border:1px dashed var(--border); border-radius:4px; color:var(--text-dim); cursor:pointer; font-family:inherit; font-size:10px; letter-spacing:.5px; padding:4px; text-align:center; width:100%; transition:all .15s; }
+  .tag-add-line:hover { border-color:var(--border-hi); color:var(--text-sec); }
+  .tag-add-section { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .tag-add-btn { display:flex; align-items:center; gap:6px; padding:6px 10px; background:var(--bg-card); border:1px solid var(--border); border-radius:5px; cursor:pointer; font-family:inherit; font-size:10px; color:var(--text-sec); transition:all .15s; letter-spacing:.3px; }
+  .tag-add-btn:hover { border-color:var(--border-hi); color:var(--text-pri); }
+  .tag-add-btn svg { width:12px; height:12px; flex-shrink:0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div id="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/>
+        <line x1="12" y1="7" x2="5" y2="17"/><line x1="12" y1="7" x2="19" y2="17"/><line x1="5" y1="19" x2="19" y2="19"/>
+      </svg>
+      Net<span class="logo-dot">Map</span>
+    </div>
+    <button class="mode-btn active" id="btn-draft" onclick="setMode('draft')">// Draft</button>
+    <button class="mode-btn" id="btn-pres"  onclick="setMode('presentation')">// Presentation</button>
+    <div class="tb-sep"></div>
+    <div id="map-name-display" title="Click to rename" onclick="renameMap()">Untitled Topology</div>
+    <div class="tb-spacer"></div>
+    <div id="tb-right">
+      <button class="tb-btn" onclick="importJSON()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import
+      </button>
+      <button class="tb-btn" onclick="exportJSON()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export
+      </button>
+      <button class="tb-btn primary" onclick="clearAll()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>Clear
+      </button>
+    </div>
+  </div>
+
+  <div id="workspace">
+    <div id="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Add Node</div>
+        <div class="node-palette">
+          <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'server')">
+            <div class="palette-icon" style="background:rgba(59,130,246,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.5"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="#3b82f6"/><circle cx="6" cy="18" r="1" fill="#3b82f6"/></svg></div>Server
+          </div>
+          <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'workstation')">
+            <div class="palette-icon" style="background:rgba(16,185,129,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>Workstation
+          </div>
+          <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'router')">
+            <div class="palette-icon" style="background:rgba(245,158,11,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg></div>Router
+          </div>
+          <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'switch')">
+            <div class="palette-icon" style="background:rgba(34,211,238,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="1.5"><rect x="2" y="8" width="20" height="8" rx="2"/><circle cx="6" cy="12" r="1.2" fill="#22d3ee"/><circle cx="10" cy="12" r="1.2" fill="#22d3ee"/><circle cx="14" cy="12" r="1.2" fill="#22d3ee"/><circle cx="18" cy="12" r="1.2" fill="#22d3ee"/></svg></div>Switch
+          </div>
+          <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'firewall')">
+            <div class="palette-icon" style="background:rgba(239,68,68,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><path d="M12 2s-8 4-8 10v6l8 4 8-4v-6C20 6 12 2 12 2z"/></svg></div>Firewall
+          </div>
+          <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'vlan')">
+            <div class="palette-icon" style="background:rgba(168,85,247,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="3" stroke-dasharray="4,2"/></svg></div>VLAN
+          </div>
+          <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'modem')">
+            <div class="palette-icon" style="background:rgba(236,72,153,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="1.5"><rect x="2" y="8" width="20" height="13" rx="2"/><line x1="7" y1="8" x2="6" y2="4" stroke-linecap="round"/><line x1="12" y1="8" x2="12" y2="3" stroke-linecap="round"/><line x1="17" y1="8" x2="18" y2="4" stroke-linecap="round"/><circle cx="7" cy="15" r="1.5" fill="#ec4899"/><circle cx="12" cy="15" r="1.5" fill="#ec4899"/><circle cx="17" cy="15" r="1.5" fill="#ec4899"/></svg></div>Modem
+          </div>
+          <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'gateway')">
+            <div class="palette-icon" style="background:rgba(251,146,60,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#fb923c" stroke-width="1.5"><path d="M12 2s-7 3-7 9v5l7 4 7-4v-5C19 5 12 2 12 2z"/><circle cx="12" cy="11" r="3"/><line x1="2" y1="11" x2="5" y2="11"/><line x1="19" y1="11" x2="22" y2="11"/></svg></div>Gateway
+          </div>
+          <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'wap')">
+            <div class="palette-icon" style="background:rgba(99,102,241,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5"><path d="M12 13a1.5 1.5 0 110 .01" fill="#6366f1"/><path d="M7.5 9.5a6.5 6.5 0 019 0" stroke-linecap="round"/><path d="M3.5 6a12 12 0 0117 0" stroke-linecap="round"/><line x1="12" y1="14.5" x2="12" y2="20" stroke-linecap="round"/><line x1="8.5" y1="20" x2="15.5" y2="20" stroke-linecap="round"/></svg></div>WAP
+          </div>
+          <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'camera')">
+            <div class="palette-icon" style="background:rgba(100,116,139,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><path d="M2 8h13a1 1 0 011 1v8a1 1 0 01-1 1H2a1 1 0 01-1-1V9a1 1 0 011-1z"/><path d="M16 11l5-3v8l-5-3z" stroke-linejoin="round"/><circle cx="8" cy="13" r="2.5"/></svg></div>Camera
+          </div>
+          <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'other')">
+            <div class="palette-icon" style="background:rgba(120,113,108,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#78716c" stroke-width="1.5"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="8" cy="12" r="1" fill="#78716c"/><circle cx="12" cy="12" r="1" fill="#78716c"/><circle cx="16" cy="12" r="1" fill="#78716c"/></svg></div>Other
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Annotate</div>
+        <div style="font-size:9px;color:var(--text-dim);margin-bottom:8px;letter-spacing:.3px;">Drag onto a node to tag it</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div class="palette-item" draggable="true" ondragstart="tagDrag(event,'implant')" style="flex-direction:row;justify-content:flex-start;gap:8px;padding:7px 10px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><ellipse cx="12" cy="9" rx="8" ry="9"/><ellipse cx="7.5" cy="6.5" rx="2.5" ry="3" fill="#ef4444" stroke="none"/><ellipse cx="16.5" cy="6.5" rx="2.5" ry="3" fill="#ef4444" stroke="none"/><line x1="8" y1="15.5" x2="6" y2="21" stroke-linecap="round"/><line x1="16" y1="15.5" x2="18" y2="21" stroke-linecap="round"/><line x1="12" y1="16" x2="12" y2="21" stroke-linecap="round"/><line x1="9" y1="11" x2="15" y2="11" stroke-width="1.3" stroke-linecap="round"/></svg>
+            <span style="font-size:10px;color:var(--red);">Implant</span>
+          </div>
+          <div class="palette-item" draggable="true" ondragstart="tagDrag(event,'av')" style="flex-direction:row;justify-content:flex-start;gap:8px;padding:7px 10px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+            <span style="font-size:10px;color:var(--green);">AV / EDR</span>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Tools</div>
+        <div class="tool-grid">
+          <button class="tool-btn active" id="tool-select" onclick="setTool('select')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l7 18 3-7 7-3z"/></svg>Select</button>
+          <button class="tool-btn" id="tool-edge" onclick="setTool('edge')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/></svg>Connect</button>
+          <button class="tool-btn full" id="tool-pan" onclick="setTool('pan')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M12 12v.01"/></svg>Pan Canvas</button>
+        </div>
+      </div>
+      <div class="sidebar-section" style="flex:1">
+        <div class="sidebar-label">Quick Actions</div>
+        <div class="tool-grid">
+          <button class="tool-btn full" onclick="fitToScreen()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>Fit Screen</button>
+          <button class="tool-btn full" onclick="autoLayout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Auto Arrange</button>
+          <button class="tool-btn full" onclick="deleteSelected()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>Delete Selected</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="canvas-wrap"
+      ondragover="event.preventDefault(); onDragOver(event)"
+      ondrop="canvasDrop(event)"
+      ondragleave="onDragLeave(event)"
+      onmousedown="canvasMD(event)"
+      onmousemove="canvasMM(event)"
+      onmouseup="canvasMU(event)"
+      onwheel="canvasWheel(event)"
+      oncontextmenu="canvasCM(event)">
+      <svg id="svg-canvas">
+        <defs>
+          <marker id="arrowhead" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L7,3 z" fill="#404a60"/>
+          </marker>
+        </defs>
+        <g id="canvas-root">
+          <g id="edges-layer"></g>
+          <g id="nodes-layer"></g>
+        </g>
+      </svg>
+      <div id="edge-hint">Click source node · then click target to connect · Esc to cancel</div>
+      <div id="legend">
+        <h4>Legend</h4>
+        <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Server</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Workstation</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Router</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#22d3ee"></div>Switch</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Firewall</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fb923c"></div>Gateway</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ec4899"></div>Modem</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#6366f1"></div>WAP</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#64748b"></div>Camera</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#78716c"></div>Other</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div>VLAN</div>
+      </div>
+      <div id="zoom-ctrl">
+        <button class="zoom-btn" onclick="zoomIn()">+</button>
+        <div id="zoom-label">100%</div>
+        <button class="zoom-btn" onclick="zoomOut()">−</button>
+        <button class="zoom-btn" style="font-size:11px" onclick="resetZoom()">⟳</button>
+      </div>
+      <div id="minimap"><svg id="minimap-svg" viewBox="0 0 180 120"><g id="mm-content"></g></svg></div>
+    </div>
+  </div>
+
+  <div id="statusbar">
+    <span><div class="stat-dot"></div>Ready</span>
+    <span id="stat-nodes">Nodes: 0</span>
+    <span id="stat-edges">Edges: 0</span>
+    <span id="stat-tool">Tool: select</span>
+    <span id="stat-zoom">Zoom: 100%</span>
+    <span id="stat-mode">Mode: Draft</span>
+  </div>
+</div>
+
+<div id="ctx-menu">
+  <div class="ctx-item" id="ctx-edit"    onclick="ctxEdit()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit Properties</div>
+  <div class="ctx-item" id="ctx-tags"    onclick="ctxTags()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Edit Tags</div>
+  <div class="ctx-item" id="ctx-conn"    onclick="ctxConn()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>Connect From</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" id="ctx-del" onclick="ctxDel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>Delete</div>
+</div>
+
+<div id="modal-overlay">
+  <div id="modal">
+    <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Node Properties</h3>
+    <div class="form-row"><label>Hostname / Label</label><input type="text" id="f-name" placeholder="e.g. web-server-01"/></div>
+    <div class="form-row"><label>IP Address</label><input type="text" id="f-ip" placeholder="e.g. 192.168.1.10/24"/></div>
+    <div class="form-row"><label>VLAN ID / Name</label><input type="text" id="f-vlan" placeholder="e.g. VLAN 10 — Management"/></div>
+    <div class="form-row"><label>Notes</label><input type="text" id="f-notes" placeholder="Optional description"/></div>
+    <div class="form-row" style="flex-direction:column;gap:6px;">
+      <label style="display:flex;align-items:center;justify-content:space-between;">
+        Additional Info Tabs
+        <button onclick="addInfoTab()" style="font-size:10px;padding:2px 8px;background:var(--bg-card);border:1px solid var(--border-hi);color:var(--accent2);border-radius:4px;cursor:pointer;">+ Add Tab</button>
+      </label>
+      <div id="f-tabs-bar" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+      <div id="f-tab-editor" style="display:none;flex-direction:column;gap:6px;">
+        <input id="f-tab-title" type="text" placeholder="Tab title e.g. Processes, Ports, Creds…"
+          style="background:var(--bg-card);border:1px solid var(--border);border-radius:5px;color:var(--text-pri);font-size:12px;padding:6px 10px;outline:none;"/>
+        <textarea id="f-tab-content" rows="7"
+          style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;color:var(--text-pri);font-family:'JetBrains Mono',monospace;font-size:11px;padding:8px 10px;outline:none;resize:vertical;line-height:1.6;"
+          placeholder="Free-form — paste process list, port scan, recon notes…"></textarea>
+        <button onclick="deleteActiveInfoTab()" style="align-self:flex-start;font-size:10px;padding:2px 8px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#ef4444;border-radius:4px;cursor:pointer;">✕ Delete tab</button>
+      </div>
+      <div id="f-tabs-empty" style="font-size:11px;color:var(--text-dim);padding:8px 0;">No info tabs yet — click "+ Add Tab" to create one.</div>
+    </div>
+    <div class="form-row"><label>Node Type</label>
+      <select id="f-type">
+        <option value="server">Server</option><option value="workstation">Workstation</option>
+        <option value="router">Router</option><option value="switch">Switch</option>
+        <option value="firewall">Firewall</option><option value="gateway">Gateway</option>
+        <option value="modem">Modem</option><option value="wap">WAP</option>
+        <option value="camera">Camera</option><option value="other">Other Device</option>
+        <option value="vlan">VLAN</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeModal()">Cancel</button>
+      <button class="modal-btn primary" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- NODE DETAIL PANEL -->
+<div id="node-detail">
+  <button id="nd-close" onclick="closeNodeDetail()">✕</button>
+  <div id="nd-header">
+    <div id="nd-type-badge"></div>
+    <div id="nd-name"></div>
+    <div id="nd-meta"></div>
+  </div>
+  <div id="nd-body"></div>
+</div>
+
+<div id="toast-wrap"></div>
+<input type="file" id="file-input" accept=".json" onchange="handleFileImport(event)"/>
+
+<!-- TAG MODAL -->
+<div id="tag-modal-overlay">
+  <div id="tag-modal">
+    <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Node Tags</h3>
+    <div class="tag-add-section" id="tag-add-section">
+      <button class="tag-add-btn" onclick="addTagToModal('implant')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><ellipse cx="12" cy="9" rx="8" ry="9"/><ellipse cx="7.5" cy="6.5" rx="2.5" ry="3" fill="#ef4444" stroke="none"/><ellipse cx="16.5" cy="6.5" rx="2.5" ry="3" fill="#ef4444" stroke="none"/><line x1="8" y1="15.5" x2="6" y2="21" stroke-linecap="round"/><line x1="16" y1="15.5" x2="18" y2="21" stroke-linecap="round"/><line x1="12" y1="16" x2="12" y2="21" stroke-linecap="round"/><line x1="9" y1="11" x2="15" y2="11" stroke-width="1.3" stroke-linecap="round"/></svg>
+        + Implant
+      </button>
+      <button class="tag-add-btn" onclick="addTagToModal('av')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+        + AV / EDR
+      </button>
+    </div>
+    <div class="tag-list" id="tag-list"></div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeTagModal()">Cancel</button>
+      <button class="modal-btn primary" onclick="saveTagModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- RENAME MODAL -->
+<div id="rename-modal-overlay">
+  <div id="rename-modal">
+    <h3>Rename Map</h3>
+    <div class="form-row">
+      <label>Map Name</label>
+      <input type="text" id="rename-input" placeholder="e.g. Corp Network Topology" maxlength="120"/>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeRenameModal()">Cancel</button>
+      <button class="modal-btn primary" onclick="saveRenameModal()">Rename</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div id="confirm-modal-overlay" style="position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px);">
+  <div style="background:var(--bg-panel);border:1px solid var(--border-hi);border-radius:10px;padding:24px;min-width:300px;max-width:360px;box-shadow:0 24px 64px rgba(0,0,0,.8);">
+    <h3 style="font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#ef4444;margin-bottom:12px;">Confirm</h3>
+    <p id="confirm-modal-msg" style="font-size:13px;color:var(--text-sec);margin-bottom:20px;"></p>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="confirmModalResolve(false)">Cancel</button>
+      <button class="modal-btn" style="background:#ef4444;border-color:#ef4444;color:#fff;" onclick="confirmModalResolve(true)">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════
+const ALLOWED_TYPES = new Set(['server','workstation','router','switch','firewall','vlan','modem','gateway','wap','camera','other']);
+const ALLOWED_TAG_TYPES = new Set(['implant','av']);
+
+const COL = { server:'#3b82f6', workstation:'#10b981', router:'#f59e0b', switch:'#22d3ee', firewall:'#ef4444', vlan:'#a855f7', modem:'#ec4899', gateway:'#fb923c', wap:'#6366f1', camera:'#64748b', other:'#78716c' };
+const DEF_W = { server:140, workstation:140, router:140, switch:140, firewall:140, vlan:164, modem:140, gateway:140, wap:140, camera:140, other:140 };
+const DEF_H = { server:60,  workstation:60,  router:60,  switch:60,  firewall:60,  vlan:200, modem:60,  gateway:60,  wap:60,  camera:60,  other:60  };
+const MIN_W = { server:100, workstation:100, router:100, switch:100, firewall:100, vlan:164, modem:100, gateway:100, wap:100, camera:100, other:100 };
+const MIN_H = { server:48,  workstation:48,  router:48,  switch:48,  firewall:48,  vlan:100, modem:48,  gateway:48,  wap:48,  camera:48,  other:48  };
+
+// Import limits
+const MAX_NODES = 2000;
+const MAX_EDGES = 5000;
+const MAX_NAME_LEN = 120;
+const MAX_IP_LEN   = 50;
+const MAX_NOTES_LEN = 500;
+const MAX_TAB_CONTENT_LEN = 20000;
+const MAX_TABS = 20;
+const MAX_TAGS = 10;
+const MAX_TAG_LINES = 20;
+const MAX_TAG_LINE_LEN = 200;
+
+// VLAN child layout constants
+const VH_TOP  = 38;
+const V_PAD   = 12;
+const C_W     = 140;
+const C_H     = 60;
+const C_GAP   = 10;
+
+const ICONS = {
+  server:      `<rect x="1" y="1" width="14" height="5.5" rx="1.2" stroke-width="1.2"/><rect x="1" y="9.5" width="14" height="5.5" rx="1.2" stroke-width="1.2"/><circle cx="3.2" cy="3.7" r=".8" fill="COL"/><circle cx="3.2" cy="12.2" r=".8" fill="COL"/>`,
+  workstation: `<rect x="1" y="1" width="14" height="10" rx="1.2" stroke-width="1.2"/><line x1="5" y1="14.5" x2="11" y2="14.5" stroke-width="1.5"/><line x1="8" y1="11" x2="8" y2="14.5" stroke-width="1.5"/>`,
+  router:      `<circle cx="8" cy="8" r="7" stroke-width="1.2"/><line x1="1" y1="8" x2="15" y2="8" stroke-width="1.2"/><path d="M8 1a11 11 0 010 14M8 1a11 11 0 000 14" stroke-width="1.2"/>`,
+  switch:      `<rect x="1" y="5" width="14" height="6" rx="1.2" stroke-width="1.2"/><circle cx="3.5" cy="8" r=".8" fill="COL"/><circle cx="6.5" cy="8" r=".8" fill="COL"/><circle cx="9.5" cy="8" r=".8" fill="COL"/><circle cx="12.5" cy="8" r=".8" fill="COL"/>`,
+  firewall:    `<path d="M8 1s-7 3.5-7 8.5V14l7 3 7-3v-4.5C15 4.5 8 1 8 1z" stroke-width="1.2"/>`,
+  vlan:        `<rect x="1" y="1" width="14" height="14" rx="2" stroke-dasharray="3,1.5" stroke-width="1.2"/>`,
+  modem:       `<rect x="1" y="5" width="14" height="9" rx="1.5" stroke-width="1.2"/><line x1="4" y1="5" x2="3" y2="2" stroke-width="1.2" stroke-linecap="round"/><line x1="8" y1="5" x2="8" y2="1.5" stroke-width="1.2" stroke-linecap="round"/><line x1="12" y1="5" x2="13" y2="2" stroke-width="1.2" stroke-linecap="round"/><circle cx="4.5" cy="10" r="1" fill="COL"/><circle cx="8" cy="10" r="1" fill="COL"/><circle cx="11.5" cy="10" r="1" fill="COL"/>`,
+  gateway:     `<path d="M8 1s-6 2.5-6 7.5V13l6 3 6-3V8.5C14 3.5 8 1 8 1z" stroke-width="1.2"/><circle cx="8" cy="8" r="2.5" stroke-width="1.2"/><line x1="1" y1="8" x2="5.5" y2="8" stroke-width="1.2"/><line x1="10.5" y1="8" x2="15" y2="8" stroke-width="1.2"/>`,
+  wap:         `<path d="M8 9.5a2 2 0 110 .01" stroke-width="1.2" fill="COL"/><path d="M4.5 7a5 5 0 017 0" stroke-width="1.2" stroke-linecap="round"/><path d="M2 4.5a8.5 8.5 0 0112 0" stroke-width="1.2" stroke-linecap="round"/><line x1="8" y1="11.5" x2="8" y2="15" stroke-width="1.2" stroke-linecap="round"/><line x1="5" y1="15" x2="11" y2="15" stroke-width="1.2" stroke-linecap="round"/>`,
+  camera:      `<path d="M1 5.5h10a1 1 0 011 1v6a1 1 0 01-1 1H1a1 1 0 01-1-1v-6a1 1 0 011-1z" stroke-width="1.2"/><path d="M12 7.5l3-2v6l-3-2z" stroke-width="1.2" stroke-linejoin="round"/><circle cx="5.5" cy="9" r="2" stroke-width="1.2"/>`,
+  other:       `<rect x="1" y="4" width="14" height="10" rx="2" stroke-width="1.2"/><line x1="4" y1="9" x2="4.01" y2="9" stroke-width="2.5" stroke-linecap="round"/><line x1="8" y1="9" x2="8.01" y2="9" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="9" x2="12.01" y2="9" stroke-width="2.5" stroke-linecap="round"/>`,
+};
+
+// TAG configuration — icon strings are static/trusted, never user-supplied
+const TAG_CFG = {
+  implant: { label:'Implant', color:'#ef4444', icon:`<ellipse cx="8" cy="6.5" rx="5.5" ry="6" stroke-width="1.3"/><ellipse cx="5.2" cy="4.5" rx="1.8" ry="2.2" fill="currentColor" stroke="none" opacity=".9"/><ellipse cx="10.8" cy="4.5" rx="1.8" ry="2.2" fill="currentColor" stroke="none" opacity=".9"/><line x1="5.5" y1="10.5" x2="4" y2="14" stroke-width="1.2" stroke-linecap="round"/><line x1="10.5" y1="10.5" x2="12" y2="14" stroke-width="1.2" stroke-linecap="round"/><line x1="8" y1="11" x2="8" y2="14" stroke-width="1.2" stroke-linecap="round"/><line x1="6" y1="7.5" x2="10" y2="7.5" stroke-width=".9" stroke-linecap="round"/>` },
+  av:      { label:'AV / EDR', color:'#10b981', icon:`<path d="M8 1s-7 3-7 8v4l7 3.5 7-3.5V9C15 4 8 1 8 1z" stroke-width="1.3"/><polyline points="5.5 8 7 9.5 10.5 6" stroke-width="1.3"/>` },
+};
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+let nodes = [], edges = [], nextId = 1, mapName = 'Untitled Topology';
+let mode = 'draft', tool = 'select';
+let vt = { x:0, y:0, s:1 };
+
+let dragging  = null;
+let panning   = null;
+let resizing  = null;
+let edgeStart = null;
+let selectedNodes = new Set(), selectedEdge = null;
+let ctxTarget = null, editingId = null;
+let vlanDropHi = null;
+
+// ═══════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+function svgEl(t) { return document.createElementNS(NS,t); }
+
+function svgPt(e) {
+  const r = $('canvas-wrap').getBoundingClientRect();
+  return { x:(e.clientX-r.left-vt.x)/vt.s, y:(e.clientY-r.top-vt.y)/vt.s };
+}
+
+function rgba(hex,a) {
+  if (typeof hex !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(hex)) hex = '#888888';
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function nW(n) { return n.w || DEF_W[n.type] || 140; }
+function nH(n) { return n.h || DEF_H[n.type] || 60; }
+function trunc(s,len) { return s&&s.length>len ? s.slice(0,len)+'…' : (s||''); }
+
+function applyVT() {
+  $('canvas-root').setAttribute('transform',`translate(${vt.x},${vt.y}) scale(${vt.s})`);
+  const p=Math.round(vt.s*100);
+  $('zoom-label').textContent=p+'%'; $('stat-zoom').textContent=`Zoom: ${p}%`;
+  updateMinimap();
+}
+
+function toast(msg,type='info') {
+  const el=document.createElement('div'); el.className=`toast ${type}`;
+  el.textContent = msg;
+  $('toast-wrap').appendChild(el);
+  setTimeout(()=>{ el.style.cssText='opacity:0;transition:opacity .3s'; setTimeout(()=>el.remove(),300); },2200);
+}
+
+function snap(v,g=16) { return Math.round(v/g)*g; }
+function snap8(v)      { return Math.round(v/8)*8; }
+function updateStats() { $('stat-nodes').textContent=`Nodes: ${nodes.length}`; $('stat-edges').textContent=`Edges: ${edges.length}`; }
+
+// ═══════════════════════════════════════════════════
+// EDGE ANCHORING
+// ═══════════════════════════════════════════════════
+function sideCenter(n, tx, ty) {
+  const cx = n.x + nW(n)/2, cy = n.y + nH(n)/2;
+  const dx = tx - cx, dy = ty - cy;
+  const hw = nW(n)/2, hh = nH(n)/2;
+  const tx_ = Math.abs(dx) < 0.001 ? Infinity : Math.abs(dx) / hw;
+  const ty_ = Math.abs(dy) < 0.001 ? Infinity : Math.abs(dy) / hh;
+  if (tx_ > ty_) return { x: cx + hw * Math.sign(dx), y: cy };
+  else           return { x: cx, y: cy + hh * Math.sign(dy) };
+}
+
+// ═══════════════════════════════════════════════════
+// VLAN CHILD LAYOUT
+// ═══════════════════════════════════════════════════
+function getChildren(vid) { return nodes.filter(n=>n.parentId===vid); }
+
+function tagHeightFor(n) {
+  const tags = n.tags || [];
+  if (!tags.length) return 0;
+  const TH_BASE = 22, LINE_H = 12, TAG_GAP = 4;
+  return tags.reduce((sum, tag) => {
+    const lines = (tag.lines||[]).filter(l=>l.trim()).length;
+    return sum + TH_BASE + (lines > 0 ? lines * LINE_H + 2 : 0) + TAG_GAP;
+  }, 0);
+}
+
+function colsForVlan(vlan) {
+  const innerW = nW(vlan) - V_PAD*2;
+  return Math.max(1, Math.floor((innerW + C_GAP) / (C_W + C_GAP)));
+}
+
+function minVlanSize(kids, cols) {
+  if (!kids.length) return { w: MIN_W.vlan, h: MIN_H.vlan };
+  const rows = Math.ceil(kids.length / cols);
+  const minW = V_PAD + cols*C_W + (cols-1)*C_GAP + V_PAD;
+  let totalH = VH_TOP + V_PAD + V_PAD;
+  for (let r = 0; r < rows; r++) {
+    const rowKids = kids.slice(r * cols, r * cols + cols);
+    const maxTagH = rowKids.reduce((m,k)=>Math.max(m,tagHeightFor(k)), 0);
+    totalH += C_H + maxTagH + (r < rows - 1 ? C_GAP : 0);
+  }
+  return {
+    w: Math.max(minW, MIN_W.vlan),
+    h: Math.max(totalH, MIN_H.vlan)
+  };
+}
+
+function reflowChildren(vid) {
+  const vlan = nodes.find(n=>n.id===vid); if (!vlan) return;
+  const kids = getChildren(vid); if (!kids.length) return;
+  const cols = colsForVlan(vlan);
+  const rows = Math.ceil(kids.length / cols);
+  const rowY = [];
+  let y = vlan.y + VH_TOP + V_PAD;
+  for (let r = 0; r < rows; r++) {
+    const rowKids = kids.slice(r * cols, r * cols + cols);
+    const maxTagH = rowKids.reduce((m,k)=>Math.max(m,tagHeightFor(k)), 0);
+    rowY.push(y + maxTagH);
+    y += maxTagH + C_H + C_GAP;
+  }
+  kids.forEach((c, i) => {
+    const col = i % cols, row = Math.floor(i / cols);
+    c.x = vlan.x + V_PAD + col*(C_W+C_GAP);
+    c.y = rowY[row];
+    c.w = C_W; c.h = C_H;
+  });
+}
+
+function snapChildren(vid) {
+  const vlan = nodes.find(n=>n.id===vid); if (!vlan) return;
+  const kids = getChildren(vid);
+  const cols = colsForVlan(vlan);
+  const rows = Math.ceil(kids.length / cols);
+  let y = vlan.y + VH_TOP + V_PAD;
+  for (let r = 0; r < rows; r++) {
+    const rowKids = kids.slice(r * cols, r * cols + cols);
+    const maxTagH = rowKids.reduce((m,k)=>Math.max(m,tagHeightFor(k)), 0);
+    rowKids.forEach((c, ci) => {
+      c.x = vlan.x + V_PAD + ci*(C_W+C_GAP);
+      c.y = y + maxTagH;
+      c.w = C_W; c.h = C_H;
+    });
+    y += maxTagH + C_H + C_GAP;
+  }
+  if (kids.length > 0) {
+    const sz = minVlanSize(kids, cols);
+    vlan.w = sz.w;
+    vlan.h = sz.h;
+  }
+}
+
+function hitVlan(pt, exclude) {
+  for (const n of nodes) {
+    if (n.type!=='vlan'||n.id===exclude) continue;
+    if (pt.x>=n.x&&pt.x<=n.x+nW(n)&&pt.y>=n.y&&pt.y<=n.y+nH(n)) return n.id;
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════
+function render() { renderEdges(); renderNodes(); updateMinimap(); updateStats(); }
+
+function renderNodes() {
+  const layer = $('nodes-layer'); layer.innerHTML='';
+  nodes.filter(n=>n.type==='vlan').forEach(n=>layer.appendChild(buildNode(n)));
+  nodes.filter(n=>n.type!=='vlan').forEach(n=>layer.appendChild(buildNode(n)));
+}
+
+function buildNode(n) {
+  const W=nW(n), H=nH(n), col=COL[n.type]||'#3b82f6';
+  const sel=selectedNodes.has(n.id), locked=mode==='presentation';
+
+  const g=svgEl('g');
+  g.setAttribute('id',`node-${n.id}`);
+  g.setAttribute('class',`node-group${locked?' locked':''}`);
+  g.setAttribute('transform',`translate(${n.x},${n.y})`);
+
+  if (n.type==='vlan') buildVlan(g,n,W,H,col,sel);
+  else                 buildRegular(g,n,W,H,col,sel);
+
+  if ((n.tags||[]).length>0) buildTags(g,n,W);
+
+  if (mode==='draft' && tool!=='pan') {
+    [[W/2,0],[W/2,H],[0,H/2],[W,H/2]].forEach(([px,py]) => {
+      const c=svgEl('circle');
+      c.setAttribute('class','port-dot');
+      c.setAttribute('cx',px); c.setAttribute('cy',py); c.setAttribute('r',5);
+      g.appendChild(c);
+    });
+  }
+
+  if (mode==='draft' && sel && !n.parentId) {
+    const SZ=7;
+    [['nw',0,0],['n',W/2,0],['ne',W,0],
+     ['w',0,H/2],            ['e',W,H/2],
+     ['sw',0,H], ['s',W/2,H],['se',W,H]].forEach(([hid,hx,hy])=>{
+      const r=svgEl('rect');
+      r.setAttribute('class',`rh ${hid}`);
+      r.setAttribute('x',hx-SZ/2); r.setAttribute('y',hy-SZ/2);
+      r.setAttribute('width',SZ); r.setAttribute('height',SZ); r.setAttribute('rx',1.5);
+      r.addEventListener('mousedown',e=>{e.stopPropagation();startResize(e,n.id,hid);});
+      g.appendChild(r);
+    });
+  }
+
+  if (!locked) {
+    g.addEventListener('mousedown',e=>nodeMD(e,n.id));
+    g.addEventListener('dblclick',e=>{e.stopPropagation();openEditModal(n.id);});
+    g.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();showCtx(e,'node',n.id);});
+  } else {
+    g.addEventListener('click', e => { e.stopPropagation(); zoomToNode(n.id); });
+    g.style.cursor = 'pointer';
+  }
+  return g;
+}
+
+// Build a text SVG element using textContent (never innerHTML)
+function txt(size,fill,x,y,content) {
+  const t=svgEl('text');
+  t.setAttribute('font-family',"'JetBrains Mono',monospace");
+  t.setAttribute('font-size',size); t.setAttribute('fill',fill);
+  t.setAttribute('x',x); t.setAttribute('y',y);
+  t.textContent = String(content ?? '');
+  return t;
+}
+
+function buildTags(g, n, W) {
+  const tags = n.tags || [];
+  const TW = 100, TH_BASE = 22, LINE_H = 12, ICO = 14, PAD = 5;
+  let offsetY = -4;
+
+  tags.forEach(tag => {
+    const cfg = TAG_CFG[tag.type];
+    if (!cfg) return; // unknown tag type — skip silently
+    const lines = (tag.lines||[]).filter(l=>l.trim());
+    const TH = TH_BASE + (lines.length > 0 ? lines.length * LINE_H + 2 : 0);
+
+    const tg = svgEl('g');
+    tg.setAttribute('class','tag-badge-group');
+    tg.setAttribute('transform',`translate(${W - TW + 8}, ${offsetY - TH})`);
+
+    const bg = svgEl('rect');
+    bg.setAttribute('class','tag-badge-bg');
+    bg.setAttribute('width', TW); bg.setAttribute('height', TH);
+    bg.setAttribute('rx', 5);
+    bg.setAttribute('fill', rgba(cfg.color, 0.15));
+    bg.setAttribute('stroke', cfg.color); bg.setAttribute('stroke-width', 1);
+    tg.appendChild(bg);
+    // If this ever becomes dynamic, switch to DOMParser + whitelist.
+    const ig = svgEl('g');
+    ig.setAttribute('transform', `translate(${PAD}, ${(TH_BASE-ICO)/2})`);
+    ig.setAttribute('stroke', cfg.color); ig.setAttribute('fill','none');
+    ig.setAttribute('width', ICO); ig.setAttribute('height', ICO);
+    ig.innerHTML = cfg.icon;
+    tg.appendChild(ig);
+    const lbl = txt(8, cfg.color, PAD + ICO + 4, TH_BASE/2 + 3, cfg.label);
+    lbl.setAttribute('font-weight','600');
+    lbl.setAttribute('letter-spacing','0.5');
+    tg.appendChild(lbl);
+    lines.forEach((line, i) => {
+      const lt = txt(8, 'rgba(255,255,255,.6)', PAD, TH_BASE + i*LINE_H + 9, trunc(line, 14));
+      tg.appendChild(lt);
+    });
+
+    if (mode==='draft') {
+      tg.addEventListener('mousedown', e => { e.stopPropagation(); });
+      tg.addEventListener('click', e => { e.stopPropagation(); openTagModal(n.id); });
+
+      const delSize = 12;
+      const delG = svgEl('g');
+      delG.setAttribute('transform', `translate(${TW - delSize - 1}, ${1})`);
+      delG.style.cursor = 'pointer';
+
+      const delBg = svgEl('rect');
+      delBg.setAttribute('width', delSize); delBg.setAttribute('height', delSize);
+      delBg.setAttribute('rx', 3);
+      delBg.setAttribute('fill', rgba(cfg.color, 0.25));
+      delG.appendChild(delBg);
+
+      const delTxt = svgEl('text');
+      delTxt.setAttribute('x', delSize/2); delTxt.setAttribute('y', delSize/2 + 3.5);
+      delTxt.setAttribute('text-anchor','middle');
+      delTxt.setAttribute('font-size', 8); delTxt.setAttribute('fill', cfg.color);
+      delTxt.setAttribute('font-family','monospace'); delTxt.setAttribute('font-weight','700');
+      delTxt.textContent = '×';
+      delG.appendChild(delTxt);
+
+      delG.addEventListener('mousedown', e => { e.stopPropagation(); });
+      delG.addEventListener('click', e => {
+        e.stopPropagation();
+        n.tags = n.tags.filter(t => t !== tag);
+        if (n.parentId) { reflowChildren(n.parentId); const vlan=nodes.find(v=>v.id===n.parentId); if(vlan){const sz=minVlanSize(getChildren(n.parentId),colsForVlan(vlan));vlan.w=sz.w;vlan.h=sz.h;} }
+        render();
+      });
+      tg.appendChild(delG);
+    }
+
+    g.appendChild(tg);
+    offsetY -= TH + 4;
+  });
+}
+
+function buildVlan(g,n,W,H,col,sel) {
+  const bg=svgEl('rect');
+  bg.setAttribute('width',W); bg.setAttribute('height',H); bg.setAttribute('rx',10);
+  bg.setAttribute('fill',rgba(col,0.07)); bg.setAttribute('stroke',col);
+  bg.setAttribute('stroke-width',sel?2.5:1.5); bg.setAttribute('stroke-dasharray','7,3');
+  bg.setAttribute('filter','drop-shadow(0 2px 10px rgba(0,0,0,.4))');
+  g.appendChild(bg);
+
+  const hbg=svgEl('rect');
+  hbg.setAttribute('width',W); hbg.setAttribute('height',VH_TOP); hbg.setAttribute('rx',10);
+  hbg.setAttribute('fill',rgba(col,0.16)); hbg.setAttribute('stroke','none');
+  g.appendChild(hbg);
+  const hbg2=svgEl('rect');
+  hbg2.setAttribute('y',VH_TOP/2); hbg2.setAttribute('width',W); hbg2.setAttribute('height',VH_TOP/2);
+  hbg2.setAttribute('fill',rgba(col,0.16)); g.appendChild(hbg2);
+  const badge = txt(8, rgba(col,0.8), 10, 13, 'VLAN');
+  badge.setAttribute('font-family',"'Rajdhani',sans-serif");
+  badge.setAttribute('letter-spacing',2); badge.setAttribute('font-weight',700);
+  g.appendChild(badge);
+
+  const nameEl = txt(11,'#fff',W/2,VH_TOP/2+6, trunc(n.name||'VLAN',28));
+  nameEl.setAttribute('text-anchor','middle'); nameEl.setAttribute('font-weight','500');
+  g.appendChild(nameEl);
+
+  if (n.ip) {
+    const ip = txt(9, rgba(col,0.6), W/2, VH_TOP/2+18, n.ip);
+    ip.setAttribute('text-anchor','middle'); g.appendChild(ip);
+  }
+
+  if (getChildren(n.id).length===0) {
+    const hint = txt(9,'rgba(255,255,255,.18)', W/2, H/2+8, 'Drop nodes here');
+    hint.setAttribute('text-anchor','middle'); g.appendChild(hint);
+  }
+}
+
+function buildRegular(g,n,W,H,col,sel) {
+  const bg=svgEl('rect');
+  bg.setAttribute('width',W); bg.setAttribute('height',H); bg.setAttribute('rx',7);
+  bg.setAttribute('fill',rgba(col,0.11)); bg.setAttribute('stroke',col);
+  bg.setAttribute('stroke-width',sel?2:1.5);
+  bg.setAttribute('filter','drop-shadow(0 2px 8px rgba(0,0,0,.5))');
+  g.appendChild(bg);
+
+  const bar=svgEl('rect');
+  bar.setAttribute('width',4); bar.setAttribute('height',H); bar.setAttribute('rx',4);
+  bar.setAttribute('fill',col); g.appendChild(bar);
+  const ig=svgEl('g');
+  ig.setAttribute('transform',`translate(12,${Math.round(H/2-8)})`);
+  ig.setAttribute('stroke',col); ig.setAttribute('fill','none');
+  ig.innerHTML=(ICONS[n.type]||'').replace(/fill="COL"/g,`fill="${col}"`);
+  g.appendChild(ig);
+  const badge = txt(8, 'rgba(255,255,255,.35)', W-7, 11, n.type.toUpperCase());
+  badge.setAttribute('font-family',"'Rajdhani',sans-serif");
+  badge.setAttribute('font-weight',700); badge.setAttribute('letter-spacing',1.5);
+  badge.setAttribute('text-anchor','end');
+  g.appendChild(badge);
+
+  const hasIp=!!n.ip;
+  const ny=hasIp ? Math.round(H/2)-4 : Math.round(H/2)+4;
+  const nameEl = txt(11,'#fff',36,ny, trunc(n.name||'Node',Math.floor((W-44)/7)));
+  nameEl.setAttribute('font-weight','500');
+  g.appendChild(nameEl);
+
+  if (hasIp) {
+    g.appendChild(txt(9,'rgba(255,255,255,.5)',36,ny+13, trunc(n.ip,Math.floor((W-44)/6))));
+  }
+  if (n.notes) {
+    const nt = txt(8,'rgba(255,255,255,.28)',W/2,H-5, trunc(n.notes,22));
+    nt.setAttribute('text-anchor','middle'); g.appendChild(nt);
+  }
+}
+
+function renderEdges() {
+  const layer=$('edges-layer'); layer.innerHTML='';
+  for (const e of edges) {
+    const fn=nodes.find(n=>n.id===e.from), tn=nodes.find(n=>n.id===e.to);
+    if (!fn||!tn) continue;
+    const fcx=fn.x+nW(fn)/2, fcy=fn.y+nH(fn)/2;
+    const tcx=tn.x+nW(tn)/2, tcy=tn.y+nH(tn)/2;
+    const fp=sideCenter(fn,tcx,tcy);
+    const tp=sideCenter(tn,fcx,fcy);
+
+    const sel=e.id===selectedEdge, col=sel?'#3b82f6':'#2e3a52';
+
+    const line=svgEl('line');
+    line.setAttribute('class','edge-line'+(sel?' selected':''));
+    line.setAttribute('x1',fp.x); line.setAttribute('y1',fp.y);
+    line.setAttribute('x2',tp.x); line.setAttribute('y2',tp.y);
+    line.setAttribute('stroke',col);
+
+    const hit=svgEl('line');
+    hit.setAttribute('class','edge-hit');
+    hit.setAttribute('x1',fp.x); hit.setAttribute('y1',fp.y);
+    hit.setAttribute('x2',tp.x); hit.setAttribute('y2',tp.y);
+    if (mode==='draft') {
+      hit.addEventListener('click',ev=>{ev.stopPropagation();selectEdge(e.id);});
+      hit.addEventListener('contextmenu',ev=>{ev.preventDefault();ev.stopPropagation();showCtx(ev,'edge',e.id);});
+    }
+    layer.appendChild(line); layer.appendChild(hit);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// NODE MOUSE EVENTS
+// ═══════════════════════════════════════════════════
+function nodeMD(e,id) {
+  if (mode==='presentation') return;
+  e.stopPropagation(); hideCtx();
+  if (tool==='edge') {
+    edgeStart===null ? startEdge(id) : completeEdge(id); return;
+  }
+  const n=nodes.find(n=>n.id===id);
+  if (!n) return;
+  const wasSelected = selectedNodes.has(id);
+  const hadEdge = selectedEdge !== null;
+  if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !wasSelected) selectedNodes.clear();
+  selectedNodes.add(id); selectedEdge=null;
+  const pt=svgPt(e);
+  dragging={id, sx:pt.x, sy:pt.y, ox:n.x, oy:n.y};
+  if (!wasSelected || hadEdge) renderNodes();
+}
+
+function startResize(e,id,handle) {
+  e.stopPropagation();
+  const n=nodes.find(n=>n.id===id);
+  if (!n) return;
+  const pt=svgPt(e);
+  resizing={id,handle,sx:pt.x,sy:pt.y,ox:n.x,oy:n.y,ow:nW(n),oh:nH(n)};
+}
+
+// ═══════════════════════════════════════════════════
+// CANVAS EVENTS
+// ═══════════════════════════════════════════════════
+function canvasMD(e) {
+  const onBg = e.target===$('svg-canvas')||e.target===$('canvas-wrap');
+  if (!onBg) return;
+  hideCtx(); selectedNodes.clear(); selectedEdge=null;
+  closeNodeDetail();
+  if (tool==='pan'||e.button===1) {
+    panning={sx:e.clientX,sy:e.clientY,tx:vt.x,ty:vt.y};
+    $('canvas-wrap').style.cursor='grabbing';
+  }
+  if (edgeStart!==null) cancelEdge();
+  renderNodes(); renderEdges();
+}
+
+function canvasMM(e) {
+  if (panning) {
+    vt.x=panning.tx+(e.clientX-panning.sx); vt.y=panning.ty+(e.clientY-panning.sy);
+    applyVT(); return;
+  }
+
+  if (resizing) {
+    const pt=svgPt(e), dx=pt.x-resizing.sx, dy=pt.y-resizing.sy;
+    const h=resizing.handle, n=nodes.find(n=>n.id===resizing.id);
+    if (!n) { resizing=null; return; }
+    let {ox,oy,ow,oh}=resizing;
+    let nx=ox,ny=oy,nw=ow,nh=oh;
+
+    if (n.type==='vlan') {
+      const kids=getChildren(n.id);
+      let pnw=ow, pnh=oh, pnx=ox, pny=oy;
+      if(h.includes('e')) pnw=Math.max(MIN_W.vlan, ow+dx);
+      if(h.includes('s')) pnh=Math.max(MIN_H.vlan, oh+dy);
+      if(h.includes('w')){pnw=Math.max(MIN_W.vlan, ow-dx);pnx=ox+ow-pnw;}
+      if(h.includes('n')){pnh=Math.max(MIN_H.vlan, oh-dy);pny=oy+oh-pnh;}
+      const proposedCols=Math.max(1, Math.floor((pnw - V_PAD*2 + C_GAP)/(C_W+C_GAP)));
+      const cmin=minVlanSize(kids, proposedCols);
+      pnw=Math.max(pnw, cmin.w); pnh=Math.max(pnh, cmin.h);
+      n.x=snap8(pnx);n.y=snap8(pny);n.w=Math.round(pnw);n.h=Math.round(pnh);
+      reflowChildren(n.id);
+    } else {
+      const mw=MIN_W[n.type]||100, mh=MIN_H[n.type]||48;
+      if(h.includes('e')) nw=Math.max(mw,ow+dx);
+      if(h.includes('s')) nh=Math.max(mh,oh+dy);
+      if(h.includes('w')){nw=Math.max(mw,ow-dx);nx=ox+ow-nw;}
+      if(h.includes('n')){nh=Math.max(mh,oh-dy);ny=oy+oh-nh;}
+      n.x=snap8(nx);n.y=snap8(ny);n.w=snap8(nw);n.h=snap8(nh);
+    }
+    render(); return;
+  }
+
+  if (dragging) {
+    const pt=svgPt(e);
+    const dx=pt.x-dragging.sx, dy=pt.y-dragging.sy;
+    const n=nodes.find(n=>n.id===dragging.id);
+    if (!n) { dragging=null; return; }
+    const nx=snap(dragging.ox+dx), ny=snap(dragging.oy+dy);
+    if (n.type==='vlan') {
+      const ddx=nx-n.x, ddy=ny-n.y;
+      n.x=nx; n.y=ny;
+      getChildren(n.id).forEach(c=>{ c.x+=ddx; c.y+=ddy; });
+      render(); return;
+    } else {
+      n.x=nx; n.y=ny;
+      if (n.parentId) {
+        render(); return;
+      }
+      const el=$(`node-${n.id}`);
+      if(el) el.setAttribute('transform',`translate(${n.x},${n.y})`);
+      renderEdges(); updateMinimap(); return;
+    }
+  }
+
+  if (edgeStart!==null) {
+    const old=$('edge-tmp'); if(old) old.remove();
+    const fn=nodes.find(n=>n.id===edgeStart); if(!fn) return;
+    const pt=svgPt(e), fp=sideCenter(fn,pt.x,pt.y);
+    const line=svgEl('line');
+    line.setAttribute('id','edge-tmp');
+    line.setAttribute('x1',fp.x);line.setAttribute('y1',fp.y);
+    line.setAttribute('x2',pt.x);line.setAttribute('y2',pt.y);
+    line.setAttribute('stroke','#3b82f6');line.setAttribute('stroke-width','1.5');
+    line.setAttribute('stroke-dasharray','6,3');line.setAttribute('pointer-events','none');
+    $('edges-layer').appendChild(line);
+  }
+}
+
+function canvasMU(e) {
+  if (panning) { panning=null; $('canvas-wrap').style.cursor=tool==='pan'?'grab':'default'; }
+
+  if (dragging) {
+    const n=nodes.find(n=>n.id===dragging.id);
+    if (n && n.type!=='vlan') {
+      const ctr={x:n.x+nW(n)/2, y:n.y+nH(n)/2};
+      const vid=hitVlan(ctr,n.id);
+      if (vid!==null && n.parentId!==vid) {
+        if (n.parentId) { const op=n.parentId; n.parentId=null; snapChildren(op); }
+        n.parentId=vid;
+        snapChildren(vid);
+        toast('Snapped into VLAN','success');
+        render();
+      } else if (n.parentId && vid===null) {
+        const vlan=nodes.find(v=>v.id===n.parentId);
+        if (vlan) {
+          const inside=n.x>=vlan.x&&n.y>=vlan.y&&n.x+nW(n)<=vlan.x+nW(vlan)&&n.y+nH(n)<=vlan.y+nH(vlan);
+          if (!inside) {
+            const op=n.parentId; n.parentId=null; snapChildren(op);
+            toast('Removed from VLAN','info'); render();
+          }
+        }
+      }
+    }
+    dragging=null;
+  }
+
+  resizing=null;
+  clearVlanHi();
+}
+
+function canvasWheel(e) {
+  e.preventDefault();
+  const r=$('canvas-wrap').getBoundingClientRect();
+  const mx=e.clientX-r.left, my=e.clientY-r.top;
+  const f=e.deltaY<0?1.1:0.9;
+  const ns=Math.max(0.1,Math.min(4,vt.s*f));
+  vt.x=mx-(mx-vt.x)*(ns/vt.s); vt.y=my-(my-vt.y)*(ns/vt.s); vt.s=ns;
+  applyVT();
+}
+
+function canvasCM(e) {
+  e.preventDefault();
+  if(e.target===$('svg-canvas')||e.target===$('canvas-wrap')) hideCtx();
+}
+
+// ═══════════════════════════════════════════════════
+// DRAG FROM PALETTE
+// ═══════════════════════════════════════════════════
+let pendingDropType=null;
+let pendingTagType=null;
+function paletteDrag(e,type) { pendingDropType=type; pendingTagType=null; e.dataTransfer.effectAllowed='copy'; }
+function tagDrag(e,type)     { pendingTagType=type; pendingDropType=null; e.dataTransfer.effectAllowed='copy'; }
+
+function onDragOver(e) {
+  if (pendingDropType==='vlan') { clearVlanHi(); return; }
+  if (!pendingDropType && !pendingTagType) { clearVlanHi(); return; }
+  const pt=svgPt(e), vid=hitVlan(pt,null);
+  if (vid!==vlanDropHi) {
+    clearVlanHi();
+    if (vid!==null) { $(`node-${vid}`)?.classList.add('vlan-hi'); vlanDropHi=vid; }
+  }
+}
+
+function onDragLeave(e) {
+  if (!e.relatedTarget||!$('canvas-wrap').contains(e.relatedTarget)) clearVlanHi();
+}
+
+function clearVlanHi() {
+  if (vlanDropHi!==null) { $(`node-${vlanDropHi}`)?.classList.remove('vlan-hi'); vlanDropHi=null; }
+}
+
+function canvasDrop(e) {
+  if (mode==='presentation') return;
+  e.preventDefault(); clearVlanHi();
+
+  if (pendingTagType) {
+    const tagType=pendingTagType; pendingTagType=null;
+    if (!ALLOWED_TAG_TYPES.has(tagType)) return;
+    const pt=svgPt(e);
+    const target=nodes.find(n=> n.type!=='vlan' && pt.x>=n.x&&pt.x<=n.x+nW(n)&&pt.y>=n.y&&pt.y<=n.y+nH(n));
+    if (target) {
+      if (!target.tags) target.tags=[];
+      openTagModal(target.id, tagType);
+    } else {
+      toast('Drop onto a node to tag it','info');
+    }
+    return;
+  }
+
+  const type=pendingDropType; pendingDropType=null; if(!type) return;
+  if (!ALLOWED_TYPES.has(type)) return;
+  const pt=svgPt(e);
+  const n=addNode(type, snap(pt.x-DEF_W[type]/2), snap(pt.y-DEF_H[type]/2), false);
+  if (type!=='vlan') {
+    const ctr={x:n.x+nW(n)/2, y:n.y+nH(n)/2};
+    const vid=hitVlan(ctr,n.id);
+    if (vid!==null) { n.parentId=vid; snapChildren(vid); toast('Dropped into VLAN','success'); }
+  }
+  render();
+}
+
+// ═══════════════════════════════════════════════════
+// EDGE
+// ═══════════════════════════════════════════════════
+function startEdge(id) { edgeStart=id; $('edge-hint').style.display='block'; }
+
+function completeEdge(id) {
+  if (edgeStart===null||edgeStart===id){cancelEdge();return;}
+  if (!nodes.find(n=>n.id===edgeStart)) { cancelEdge(); return; }
+  const dup=edges.some(e=>(e.from===edgeStart&&e.to===id)||(e.from===id&&e.to===edgeStart));
+  if(!dup){edges.push({id:nextId++,from:edgeStart,to:id});toast('Connected','success');}
+  cancelEdge(); render();
+}
+
+function cancelEdge() {
+  edgeStart=null; $('edge-hint').style.display='none';
+  const t=$('edge-tmp'); if(t) t.remove();
+}
+
+// ═══════════════════════════════════════════════════
+// ADD NODE
+// ═══════════════════════════════════════════════════
+function addNode(type,x,y,doRender=true) {
+  if (!ALLOWED_TYPES.has(type)) type = 'other';
+  const count=nodes.filter(n=>n.type===type).length+1;
+  const pfx={server:'server',workstation:'ws',router:'router',switch:'sw',firewall:'fw',vlan:'VLAN',modem:'modem',gateway:'gw',wap:'wap',camera:'cam',other:'device'};
+  const n={
+    id:nextId++,type,
+    x:x??100+Math.random()*300, y:y??100+Math.random()*200,
+    w:DEF_W[type]||140, h:DEF_H[type]||60,
+    name:`${pfx[type]||type}-${String(count).padStart(2,'0')}`,
+    ip:'',vlan:'',notes:'',infoTabs:[],parentId:null,tags:[]
+  };
+  nodes.push(n); if(doRender) render(); return n;
+}
+
+// ═══════════════════════════════════════════════════
+// SELECTION / DELETE
+// ═══════════════════════════════════════════════════
+function selectEdge(id) {
+  selectedEdge=id; selectedNodes.clear(); renderEdges(); renderNodes();
+}
+function collectDeleteSet(rootIds) {
+  const queue = [...rootIds];
+  const idSet = new Set();
+  let head = 0;
+  while (head < queue.length) {
+    const id = queue[head++];
+    if (idSet.has(id)) continue;
+    idSet.add(id);
+    const n = nodes.find(n => n.id === id);
+    if (n?.type === 'vlan') {
+      getChildren(id).forEach(c => queue.push(c.id));
+    }
+  }
+  return idSet;
+}
+
+function deleteSelected() {
+  if (selectedEdge!==null) {
+    edges=edges.filter(e=>e.id!==selectedEdge);
+    selectedEdge=null;
+    render();
+    toast('Edge deleted','info');
+    return;
+  }
+  if (selectedNodes.size>0) {
+    const idSet = collectDeleteSet([...selectedNodes]);
+    // Collect parent VLANs that will survive
+    const parentIds = new Set(
+      nodes.filter(n => idSet.has(n.id) && n.parentId && !idSet.has(n.parentId))
+           .map(n => n.parentId)
+    );
+    nodes = nodes.filter(n => !idSet.has(n.id));
+    edges = edges.filter(e => !idSet.has(e.from) && !idSet.has(e.to));
+    parentIds.forEach(vid => { if (nodes.find(n => n.id===vid)) snapChildren(vid); });
+    if (selectedEdge !== null && !edges.some(e => e.id === selectedEdge)) selectedEdge = null;
+    selectedNodes.clear();
+    toast(`Deleted ${idSet.size} node(s)`,'info');
+  }
+  render();
+}
+
+document.addEventListener('keydown',e=>{
+  const tag=document.activeElement?.tagName;
+  if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA') return;
+  if(e.key==='Delete'||e.key==='Backspace') deleteSelected();
+  if(e.key==='Escape'){cancelEdge();closeModal();closeTagModal();hideCtx();closeRenameModal();}
+});
+
+// ═══════════════════════════════════════════════════
+// CONTEXT MENU
+// ═══════════════════════════════════════════════════
+function showCtx(e,type,id) {
+  if(mode==='presentation') return;
+  ctxTarget={type,id};
+  const m=$('ctx-menu'); m.style.display='block';
+  const mW=m.offsetWidth||170, mH=m.offsetHeight||130;
+  m.style.left=Math.min(e.clientX, window.innerWidth  - mW - 4)+'px';
+  m.style.top =Math.min(e.clientY, window.innerHeight - mH - 4)+'px';
+  $('ctx-edit').style.display=type==='node'?'flex':'none';
+  $('ctx-tags').style.display=type==='node'?'flex':'none';
+  $('ctx-conn').style.display=type==='node'?'flex':'none';
+}
+function hideCtx() { $('ctx-menu').style.display='none'; ctxTarget=null; }
+document.addEventListener('click',hideCtx);
+function ctxEdit() { if(ctxTarget?.type==='node') openEditModal(ctxTarget.id); hideCtx(); }
+function ctxTags() { if(ctxTarget?.type==='node') openTagModal(ctxTarget.id); hideCtx(); }
+function ctxConn() { if(ctxTarget?.type==='node'){startEdge(ctxTarget.id);setTool('edge');} hideCtx(); }
+function ctxDel()  {
+  if(!ctxTarget) return;
+  if(ctxTarget.type==='node') {
+    const n = nodes.find(n => n.id===ctxTarget.id);
+    const parentId = n?.parentId;
+    const idSet = collectDeleteSet([ctxTarget.id]);
+    nodes = nodes.filter(n => !idSet.has(n.id));
+    edges = edges.filter(e => !idSet.has(e.from) && !idSet.has(e.to));
+    if (selectedEdge !== null && !edges.some(e => e.id === selectedEdge)) selectedEdge = null;
+    if (parentId && nodes.find(n => n.id===parentId)) snapChildren(parentId);
+    selectedNodes.clear();
+    toast('Deleted','info');
+  } else {
+    edges=edges.filter(e=>e.id!==ctxTarget.id);
+    if (selectedEdge === ctxTarget.id) selectedEdge = null;
+    toast('Edge deleted','info');
+  }
+  hideCtx(); render();
+}
+
+// ═══════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════
+let activeTabIdx = -1;
+let editingTabs = [];
+
+function openEditModal(id) {
+  const n=nodes.find(n=>n.id===id);
+  if (!n) { toast('Node no longer exists','error'); return; }
+  editingId=id;
+  $('f-name').value=n.name||''; $('f-ip').value=n.ip||'';
+  $('f-vlan').value=n.vlan||''; $('f-notes').value=n.notes||'';
+  $('f-type').value=n.type||'server';
+  editingTabs = (n.infoTabs||[]).map(t=>({title:t.title||'',content:t.content||''}));
+  activeTabIdx = editingTabs.length ? 0 : -1;
+  renderTabsBar();
+  $('modal-overlay').classList.add('show'); $('f-name').focus();
+}
+
+function renderTabsBar() {
+  const bar = $('f-tabs-bar');
+  const editor = $('f-tab-editor');
+  const empty = $('f-tabs-empty');
+  bar.innerHTML='';
+  editingTabs.forEach((tab,i)=>{
+    const btn = document.createElement('button');
+    btn.textContent = tab.title||`Tab ${i+1}`;
+    btn.style.cssText=`font-size:10px;padding:3px 10px;border-radius:4px;cursor:pointer;border:1px solid;transition:all .15s;`
+      + (i===activeTabIdx
+        ? 'background:var(--accent2);border-color:var(--accent2);color:#000;font-weight:600;'
+        : 'background:var(--bg-card);border-color:var(--border);color:var(--text-sec);');
+    btn.onclick = ()=>{ flushActiveTab(); activeTabIdx=i; renderTabsBar(); };
+    bar.appendChild(btn);
+  });
+  if (editingTabs.length===0) {
+    editor.style.display='none'; empty.style.display='block';
+  } else {
+    editor.style.display='flex'; empty.style.display='none';
+    const tab = editingTabs[activeTabIdx]||{};
+    $('f-tab-title').value = tab.title||'';
+    $('f-tab-content').value = tab.content||'';
+  }
+}
+
+function flushActiveTab() {
+  if (activeTabIdx<0||activeTabIdx>=editingTabs.length) return;
+  editingTabs[activeTabIdx].title = $('f-tab-title').value;
+  editingTabs[activeTabIdx].content = $('f-tab-content').value;
+}
+
+function addInfoTab() {
+  flushActiveTab();
+  editingTabs.push({title:'',content:''});
+  activeTabIdx = editingTabs.length-1;
+  renderTabsBar();
+  $('f-tab-title').focus();
+}
+
+function deleteActiveInfoTab() {
+  if (activeTabIdx<0) return;
+  editingTabs.splice(activeTabIdx,1);
+  activeTabIdx = Math.min(activeTabIdx, editingTabs.length-1);
+  renderTabsBar();
+}
+
+function closeModal() { $('modal-overlay').classList.remove('show'); editingId=null; }
+function saveModal() {
+  if(editingId===null) return;
+  flushActiveTab();
+  const n=nodes.find(n=>n.id===editingId);
+  if (!n) { closeModal(); toast('Node was deleted','error'); return; }
+  const nt=$('f-type').value;
+  const safeType = ALLOWED_TYPES.has(nt) ? nt : n.type;
+  n.name=$('f-name').value.trim().slice(0,MAX_NAME_LEN)||n.name;
+  n.ip=$('f-ip').value.trim().slice(0,MAX_IP_LEN);
+  n.vlan=$('f-vlan').value.trim().slice(0,MAX_NAME_LEN);
+  n.notes=$('f-notes').value.trim().slice(0,MAX_NOTES_LEN);
+  n.infoTabs = editingTabs
+    .filter(t=>t.title||t.content)
+    .slice(0, MAX_TABS)
+    .map(t=>({title:t.title.trim().slice(0,MAX_NAME_LEN)||'Info', content:t.content.slice(0,MAX_TAB_CONTENT_LEN)}));
+  if(safeType!==n.type){n.type=safeType;n.w=DEF_W[safeType];n.h=DEF_H[safeType];}
+  if(n.parentId) snapChildren(n.parentId);
+  closeModal(); render(); toast('Saved','success');
+}
+
+// ═══════════════════════════════════════════════════
+// MODE & TOOL
+// ═══════════════════════════════════════════════════
+function setMode(m) {
+  mode=m;
+  $('btn-draft').classList.toggle('active',m==='draft');
+  $('btn-pres').classList.toggle('active',m==='presentation');
+  $('sidebar').classList.toggle('hidden',m==='presentation');
+  $('legend').classList.toggle('show',m==='presentation');
+  $('stat-mode').textContent=`Mode: ${m.charAt(0).toUpperCase()+m.slice(1)}`;
+  cancelEdge(); selectedNodes.clear(); selectedEdge=null;
+  if (m==='presentation') setTool('pan');
+  else closeNodeDetail();
+  render();
+}
+
+function setTool(t) {
+  tool=t;
+  ['select','edge','pan'].forEach(tt=>$(`tool-${tt}`)?.classList.toggle('active',tt===t));
+  $('canvas-wrap').style.cursor=t==='pan'?'grab':'default';
+  $('stat-tool').textContent=`Tool: ${t}`;
+  if(t!=='edge') cancelEdge();
+  render();
+}
+
+// ═══════════════════════════════════════════════════
+// ZOOM
+// ═══════════════════════════════════════════════════
+function zoomIn()   { adjZ(1.2); }
+function zoomOut()  { adjZ(0.83); }
+function resetZoom(){ vt={x:0,y:0,s:1}; applyVT(); }
+function adjZ(f) {
+  const w=$('canvas-wrap'), cx=w.clientWidth/2, cy=w.clientHeight/2;
+  const ns=Math.max(0.1,Math.min(4,vt.s*f));
+  vt.x=cx-(cx-vt.x)*(ns/vt.s); vt.y=cy-(cy-vt.y)*(ns/vt.s); vt.s=ns; applyVT();
+}
+
+function fitToScreen() {
+  if(!nodes.length){resetZoom();return;}
+  const w=$('canvas-wrap'), W=w.clientWidth, H=w.clientHeight;
+  let mnX=1e9,mnY=1e9,mxX=-1e9,mxY=-1e9;
+  nodes.forEach(n=>{mnX=Math.min(mnX,n.x);mnY=Math.min(mnY,n.y);mxX=Math.max(mxX,n.x+nW(n));mxY=Math.max(mxY,n.y+nH(n));});
+  const pad=60;
+  const extW = mxX-mnX || 1, extH = mxY-mnY || 1;
+  const avW = Math.max(1, W-pad*2), avH = Math.max(1, H-pad*2);
+  const sc = Math.max(0.01, Math.min(avW/extW, avH/extH, 2));
+  vt.s=sc; vt.x=(W-extW*sc)/2-mnX*sc; vt.y=(H-extH*sc)/2-mnY*sc; applyVT();
+}
+
+function autoLayout() {
+  const vlans = nodes.filter(n => n.type === 'vlan');
+  const tops  = nodes.filter(n => !n.parentId && n.type !== 'vlan');
+
+  const H_GAP = 60;
+  const V_GAP = 80;
+  const canvasW = $('canvas-wrap').clientWidth || 1200;
+  const START_X = 60;
+  let x = START_X, y = 60, rowMaxH = 0, sectionMaxY = 60;
+
+  vlans.forEach(v => {
+    snapChildren(v.id);
+    const vw = nW(v), vh = nH(v);
+    // wrap to new row if this VLAN would exceed canvas width (and we're not at start of row)
+    if (x > START_X && x + vw > canvasW - START_X) {
+      y += rowMaxH + V_GAP;
+      x = START_X;
+      rowMaxH = 0;
+    }
+    v.x = x; v.y = y;
+    snapChildren(v.id);
+    x += vw + H_GAP;
+    rowMaxH = Math.max(rowMaxH, vh);
+    sectionMaxY = Math.max(sectionMaxY, y + vh);
+  });
+
+  if (tops.length > 0) {
+    const baseY = vlans.length > 0 ? sectionMaxY + V_GAP : 60;
+
+    const cols = Math.min(5, Math.ceil(Math.sqrt(tops.length)));
+    const cellW = tops.reduce((m,n)=>Math.max(m,nW(n)), 0) + H_GAP;
+    const cellH = tops.reduce((m,n)=>Math.max(m,nH(n)), 0) + V_GAP;
+
+    tops.forEach((n, i) => {
+      const col = i % cols, row = Math.floor(i / cols);
+      n.x = START_X + col * cellW;
+      n.y = baseY  + row * cellH;
+    });
+  }
+
+  render(); fitToScreen(); toast('Auto-arranged', 'success');
+}
+
+// ═══════════════════════════════════════════════════
+// MINIMAP
+// ═══════════════════════════════════════════════════
+function updateMinimap() {
+  const layer=$('mm-content'); layer.innerHTML='';
+  if(!nodes.length) return;
+  let mnX=1e9,mnY=1e9,mxX=-1e9,mxY=-1e9;
+  nodes.forEach(n=>{mnX=Math.min(mnX,n.x);mnY=Math.min(mnY,n.y);mxX=Math.max(mxX,n.x+nW(n));mxY=Math.max(mxY,n.y+nH(n));});
+  const mmW=180,mmH=120,pad=8;
+  const extW = mxX-mnX || 1, extH = mxY-mnY || 1;
+  const sc=Math.max(0.001, Math.min((mmW-pad*2)/extW,(mmH-pad*2)/extH));
+  edges.forEach(e=>{
+    const fn=nodes.find(n=>n.id===e.from),tn=nodes.find(n=>n.id===e.to);if(!fn||!tn)return;
+    const l=svgEl('line');
+    l.setAttribute('x1',pad+(fn.x+nW(fn)/2-mnX)*sc); l.setAttribute('y1',pad+(fn.y+nH(fn)/2-mnY)*sc);
+    l.setAttribute('x2',pad+(tn.x+nW(tn)/2-mnX)*sc); l.setAttribute('y2',pad+(tn.y+nH(tn)/2-mnY)*sc);
+    l.setAttribute('stroke','#2e3a52'); l.setAttribute('stroke-width','0.5'); layer.appendChild(l);
+  });
+  nodes.forEach(n=>{
+    const r=svgEl('rect');
+    r.setAttribute('x',pad+(n.x-mnX)*sc); r.setAttribute('y',pad+(n.y-mnY)*sc);
+    r.setAttribute('width',Math.max(3,nW(n)*sc)); r.setAttribute('height',Math.max(2,nH(n)*sc));
+    r.setAttribute('rx',1); r.setAttribute('fill',rgba(COL[n.type]||'#3b82f6',n.type==='vlan'?0.25:0.7));
+    layer.appendChild(r);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// IMPORT / EXPORT
+// ═══════════════════════════════════════════════════
+function exportJSON() {
+  const blob=new Blob([JSON.stringify({version:2,name:mapName,nodes,edges},null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url;
+  a.download=(mapName.replace(/\s+/g,'-').toLowerCase()||'netmap')+'.json'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 100);
+  toast(`Exported "${mapName}.json"`,'success');
+}
+function importJSON() { $('file-input').click(); }
+function sanitizeString(v, maxLen) {
+  if (typeof v !== 'string') return '';
+  return v.slice(0, maxLen);
+}
+
+function validateAndSanitizeNode(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const type = ALLOWED_TYPES.has(raw.type) ? raw.type : 'other';
+  const id = Number.isInteger(raw.id) && raw.id > 0 ? raw.id : null;
+  if (id === null) return null; // silently drop — caller can log if needed
+  const x = typeof raw.x === 'number' && isFinite(raw.x) ? raw.x : 0;
+  const y = typeof raw.y === 'number' && isFinite(raw.y) ? raw.y : 0;
+  const w = typeof raw.w === 'number' && raw.w > 0 ? Math.min(raw.w, 2000) : DEF_W[type]||140;
+  const h = typeof raw.h === 'number' && raw.h > 0 ? Math.min(raw.h, 2000) : DEF_H[type]||60;
+  // parentId must reference a known id — validated after full node list is built
+  const parentId = typeof raw.parentId === 'number' ? raw.parentId : null;
+
+  // Sanitize tags
+  const rawTags = Array.isArray(raw.tags) ? raw.tags.slice(0, MAX_TAGS) : [];
+  const tags = rawTags
+    .filter(t => t && typeof t === 'object' && ALLOWED_TAG_TYPES.has(t.type))
+    .map(t => ({
+      type: t.type,
+      lines: Array.isArray(t.lines)
+        ? t.lines.slice(0, MAX_TAG_LINES).map(l => sanitizeString(l, MAX_TAG_LINE_LEN))
+        : []
+    }));
+
+  // Sanitize infoTabs (support legacy 'info' field)
+  let infoTabs = [];
+  if (Array.isArray(raw.infoTabs)) {
+    infoTabs = raw.infoTabs.slice(0, MAX_TABS).map(t => ({
+      title:   sanitizeString(t.title   || 'Info', MAX_NAME_LEN),
+      content: sanitizeString(t.content || '',     MAX_TAB_CONTENT_LEN)
+    }));
+  } else if (typeof raw.info === 'string' && raw.info.trim()) {
+    infoTabs = [{ title: 'Info', content: raw.info.slice(0, MAX_TAB_CONTENT_LEN) }];
+  }
+
+  return {
+    id,
+    type,
+    x: Math.max(-10000, Math.min(x, 100000)),
+    y: Math.max(-10000, Math.min(y, 100000)),
+    w, h,
+    name:  sanitizeString(raw.name  || type, MAX_NAME_LEN),
+    ip:    sanitizeString(raw.ip    || '',   MAX_IP_LEN),
+    vlan:  sanitizeString(raw.vlan  || '',   MAX_NAME_LEN),
+    notes: sanitizeString(raw.notes || '',   MAX_NOTES_LEN),
+    parentId,
+    tags,
+    infoTabs,
+  };
+}
+
+function validateAndSanitizeEdge(raw, nodeIds) {
+  if (!raw || typeof raw !== 'object') return null;
+  const id   = Number.isInteger(raw.id)   && raw.id   > 0 ? raw.id   : null;
+  const from = Number.isInteger(raw.from) && nodeIds.has(raw.from) ? raw.from : null;
+  const to   = Number.isInteger(raw.to)   && nodeIds.has(raw.to)   ? raw.to   : null;
+  if (id === null || from === null || to === null || from === to) return null;
+  return { id, from, to };
+}
+
+function handleFileImport(e) {
+  const file=e.target.files[0]; if(!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    toast('Import failed: file too large (max 10 MB)','error');
+    e.target.value=''; return;
+  }
+  const reader=new FileReader();
+  reader.onerror = () => { toast('Import failed: could not read file','error'); e.target.value=''; };
+  reader.onload=ev=>{
+    try {
+      const data=JSON.parse(ev.target.result);
+      if(!Array.isArray(data.nodes)||!Array.isArray(data.edges)) throw new Error('Missing nodes/edges arrays');
+      if(data.nodes.length > MAX_NODES) throw new Error(`Too many nodes (max ${MAX_NODES})`);
+      if(data.edges.length > MAX_EDGES) throw new Error(`Too many edges (max ${MAX_EDGES})`);
+
+      // Validate and sanitize all nodes
+      const sanitizedNodes = data.nodes.map(validateAndSanitizeNode).filter(Boolean);
+      const droppedNodes = data.nodes.length - sanitizedNodes.length;
+      const nodeIds = new Set(sanitizedNodes.map(n => n.id));
+
+      // Resolve parentId references — must point to a real node in the import
+      sanitizedNodes.forEach(n => {
+        if (n.parentId !== null && !nodeIds.has(n.parentId)) n.parentId = null;
+        if (n.parentId === n.id) n.parentId = null;
+      });
+
+      // Validate edges (dedup by from-to pair)
+      const edgePairs = new Set();
+      const sanitizedEdges = data.edges
+        .map(raw => validateAndSanitizeEdge(raw, nodeIds))
+        .filter(e => {
+          if (!e) return false;
+          const key = `${Math.min(e.from,e.to)}-${Math.max(e.from,e.to)}`;
+          if (edgePairs.has(key)) return false;
+          edgePairs.add(key); return true;
+        });
+      const maxNodeId = sanitizedNodes.reduce((m,n)=>Math.max(m,n.id), 0);
+      const maxEdgeId = sanitizedEdges.reduce((m,e)=>Math.max(m,e.id), 0);
+
+      nodes   = sanitizedNodes;
+      edges   = sanitizedEdges;
+      mapName = sanitizeString(data.name || 'Imported', MAX_NAME_LEN);
+      nextId  = Math.max(maxNodeId, maxEdgeId) + 1;
+
+      $('map-name-display').textContent = mapName;
+      render(); fitToScreen();
+      const dropWarn = droppedNodes > 0 ? ` (${droppedNodes} invalid node(s) skipped)` : '';
+      toast(`Imported "${mapName}" — ${nodes.length} nodes, ${edges.length} edges${dropWarn}`,'success');
+    } catch(err) {
+      toast(`Import failed: ${err.message||'invalid JSON'}`,'error');
+    }
+  };
+  reader.readAsText(file); e.target.value='';
+}
+
+// ═══════════════════════════════════════════════════
+// TAG MODAL
+// ═══════════════════════════════════════════════════
+let tagEditingId = null;
+let tagModalState = [];
+
+function openTagModal(nodeId, preloadTagType) {
+  const n = nodes.find(n=>n.id===nodeId);
+  if (!n) { toast('Node no longer exists','error'); return; }
+  tagEditingId = nodeId;
+  tagModalState = JSON.parse(JSON.stringify(n.tags||[]));
+  if (preloadTagType && ALLOWED_TAG_TYPES.has(preloadTagType) && !tagModalState.find(t=>t.type===preloadTagType))
+    tagModalState.push({type:preloadTagType, lines:['']});
+  renderTagModal();
+  $('tag-modal-overlay').classList.add('show');
+}
+
+function closeTagModal() {
+  $('tag-modal-overlay').classList.remove('show');
+  tagEditingId=null; tagModalState=[];
+}
+
+function saveTagModal() {
+  if (tagEditingId===null) return;
+  const n=nodes.find(n=>n.id===tagEditingId);
+  if (!n) { closeTagModal(); toast('Node was deleted','error'); return; }
+  tagModalState.forEach((tag,ti) => {
+    const lineInputs = document.querySelectorAll(`.tag-line-input[data-tag="${ti}"]`);
+    tag.lines = [...lineInputs].map(i=>i.value.trim()).filter(Boolean);
+  });
+  // Enforce limits and allowlist on save
+  n.tags = tagModalState
+    .filter(t => ALLOWED_TAG_TYPES.has(t.type))
+    .slice(0, MAX_TAGS)
+    .map(t => ({
+      type: t.type,
+      lines: (t.lines||[]).slice(0, MAX_TAG_LINES).map(l => String(l).slice(0, MAX_TAG_LINE_LEN))
+    }));
+  if (n.parentId) { reflowChildren(n.parentId); const vlan=nodes.find(v=>v.id===n.parentId); if(vlan){const sz=minVlanSize(getChildren(n.parentId),colsForVlan(vlan));vlan.w=sz.w;vlan.h=sz.h;} }
+  closeTagModal(); render(); toast('Tags saved','success');
+}
+
+function addTagToModal(type) {
+  if (!ALLOWED_TAG_TYPES.has(type)) return;
+  flushInputsToState();
+  if (!tagModalState.find(t=>t.type===type))
+    tagModalState.push({type, lines:['']});
+  renderTagModal();
+}
+
+function flushInputsToState() {
+  tagModalState.forEach((tag, ti) => {
+    const inputs = document.querySelectorAll(`.tag-line-input[data-tag="${ti}"]`);
+    if (inputs.length) tag.lines = [...inputs].map(i => i.value);
+  });
+}
+
+function removeTagFromModal(ti) {
+  flushInputsToState(); tagModalState.splice(ti,1); renderTagModal();
+}
+
+function addLineToTag(ti) {
+  flushInputsToState();
+  if ((tagModalState[ti]?.lines||[]).length < MAX_TAG_LINES)
+    tagModalState[ti].lines.push('');
+  renderTagModal();
+}
+
+function removeLineFromTag(ti, li) {
+  flushInputsToState(); tagModalState[ti].lines.splice(li,1); renderTagModal();
+}
+function renderTagModal() {
+  const list = $('tag-list');
+  list.innerHTML = '';
+
+  if (!tagModalState.length) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'font-size:11px;color:var(--text-dim);text-align:center;padding:12px 0;';
+    empty.textContent = 'No tags yet — add one above';
+    list.appendChild(empty);
+    return;
+  }
+
+  tagModalState.forEach((tag, ti) => {
+    const cfg = TAG_CFG[tag.type] || {label: tag.type, color:'#888'};
+
+    const row = document.createElement('div');
+    row.className = 'tag-row';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'tag-row-header';
+
+    const typeDiv = document.createElement('div');
+    typeDiv.className = 'tag-row-type';
+
+    const dot = document.createElement('div');
+    dot.className = 'tag-type-dot';
+    dot.style.background = cfg.color;
+
+    const labelSpan = document.createElement('span');
+    labelSpan.textContent = cfg.label;
+
+    typeDiv.appendChild(dot);
+    typeDiv.appendChild(labelSpan);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'tag-del-btn';
+    delBtn.textContent = '✕';
+    delBtn.onclick = () => removeTagFromModal(ti);
+
+    header.appendChild(typeDiv);
+    header.appendChild(delBtn);
+    row.appendChild(header);
+
+    // Lines area
+    const linesArea = document.createElement('div');
+    linesArea.className = 'tag-lines-area';
+    linesArea.id = `tag-lines-${ti}`;
+
+    const linesToShow = tag.lines.length ? tag.lines : [''];
+    linesToShow.forEach((line, li) => {
+      const lr = document.createElement('div');
+      lr.className = 'tag-line-row';
+
+      const input = document.createElement('input');
+      input.className = 'tag-line-input';
+      input.dataset.tag = ti;
+      input.dataset.line = li;
+      input.type = 'text';
+      input.placeholder = 'e.g. CobaltStrike 4.9';
+      input.maxLength = MAX_TAG_LINE_LEN;
+      input.value = line;
+
+      const lineDelBtn = document.createElement('button');
+      lineDelBtn.className = 'tag-line-del';
+      lineDelBtn.textContent = '✕';
+      lineDelBtn.onclick = () => removeLineFromTag(ti, li);
+
+      lr.appendChild(input);
+      lr.appendChild(lineDelBtn);
+      linesArea.appendChild(lr);
+    });
+
+    const addLineBtn = document.createElement('button');
+    addLineBtn.className = 'tag-add-line';
+    addLineBtn.textContent = '+ add line';
+    addLineBtn.onclick = () => addLineToTag(ti);
+
+    row.appendChild(linesArea);
+    row.appendChild(addLineBtn);
+    list.appendChild(row);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// NODE DETAIL (presentation mode)
+// ═══════════════════════════════════════════════════
+let savedVT = null;
+let ndActiveTab = 0;
+
+function zoomToNode(id) {
+  const n = nodes.find(n=>n.id===id); if(!n) return;
+  savedVT = {x:vt.x, y:vt.y, s:vt.s};
+
+  const wrap = $('canvas-wrap');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  const availW = W - 520;
+  const targetS = Math.max(0.1, Math.min(availW / (nW(n) * 1.6), H / (nH(n) * 2.5), 3));
+  const nodeCX = n.x + nW(n)/2, nodeCY = n.y + nH(n)/2;
+  const targetX = availW/2 - nodeCX * targetS;
+  const targetY = H/2 - nodeCY * targetS;
+
+  const startX=vt.x, startY=vt.y, startS=vt.s;
+  const dur=400, start=performance.now();
+  function step(now) {
+    const t = Math.min((now-start)/dur, 1);
+    const e = t<0.5 ? 2*t*t : -1+(4-2*t)*t;
+    vt.x = startX + (targetX-startX)*e;
+    vt.y = startY + (targetY-startY)*e;
+    vt.s = startS + (targetS-startS)*e;
+    applyVT();
+    if (t<1) requestAnimationFrame(step);
+    else if (nodes.find(n=>n.id===id)) openNodeDetail(id);
+    else { savedVT=null; } // discard saved view; nothing to show
+  }
+  requestAnimationFrame(step);
+}
+function openNodeDetail(id) {
+  const n = nodes.find(n=>n.id===id); if(!n) return;
+  const col = COL[n.type]||'#3b82f6';
+  ndActiveTab = 0;
+
+  const typeBadge = $('nd-type-badge');
+  typeBadge.textContent = n.type.toUpperCase();
+  typeBadge.style.color = col;
+
+  const nameEl = $('nd-name');
+  nameEl.textContent = n.name || '—';
+  nameEl.style.color = col;
+
+  const meta = $('nd-meta');
+  meta.innerHTML = '';
+
+  const metaFields = [
+    ['IP', n.ip], ['VLAN', n.vlan], ['Note', n.notes]
+  ];
+  metaFields.forEach(([key, val]) => {
+    if (!val) return;
+    const span = document.createElement('span');
+    const mk = document.createElement('span');
+    mk.className = 'mk';
+    mk.textContent = key;
+    const valNode = document.createTextNode(val);
+    span.appendChild(mk);
+    span.appendChild(valNode);
+    meta.appendChild(span);
+  });
+
+  renderNodeDetailBody(n, col);
+  $('node-detail').classList.add('show');
+}
+function renderNodeDetailBody(n, col) {
+  const body = $('nd-body');
+  body.innerHTML = '';
+  const tabs = n.infoTabs || [];
+  const tags = n.tags || [];
+
+  const tabLabels = ['Overview', ...tabs.map((t,i) => t.title || `Tab ${i+1}`)];
+
+  // Tab bar
+  if (tabLabels.length > 1) {
+    const tabBar = document.createElement('div');
+    tabBar.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0;margin-bottom:4px;';
+    tabLabels.forEach((label, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.style.cssText = `font-size:10px;padding:4px 12px;border-radius:4px;cursor:pointer;border:1px solid;transition:all .15s;`
+        + (i===ndActiveTab
+          ? `background:${col};border-color:${col};color:#000;font-weight:600;`
+          : 'background:var(--bg-card);border-color:var(--border);color:var(--text-sec);');
+      btn.onclick = () => { ndActiveTab=i; renderNodeDetailBody(n, col); };
+      tabBar.appendChild(btn);
+    });
+    body.appendChild(tabBar);
+  }
+
+  if (ndActiveTab === 0) {
+    // Overview tab
+    if (tags.length) {
+      const sec = document.createElement('div');
+      sec.className = 'nd-section';
+
+      const title = document.createElement('div');
+      title.className = 'nd-section-title';
+      title.textContent = 'Tags';
+      sec.appendChild(title);
+
+      tags.forEach(tag => {
+        const cfg = TAG_CFG[tag.type] || {label:tag.type, color:'#888'};
+        const chip = document.createElement('div');
+        chip.className = 'nd-tag-chip';
+        chip.style.cssText = `background:${rgba(cfg.color,0.15)};border:1px solid ${rgba(cfg.color,0.4)};color:${cfg.color}`;
+        const lines = (tag.lines||[]).filter(l=>l.trim());
+        chip.textContent = cfg.label + (lines.length ? `: ${lines.join(' · ')}` : '');
+        sec.appendChild(chip);
+      });
+      body.appendChild(sec);
+    }
+
+    if (tabs.length) {
+      const sec = document.createElement('div');
+      sec.className = 'nd-section';
+
+      const title = document.createElement('div');
+      title.className = 'nd-section-title';
+      title.textContent = 'Info Tabs';
+      sec.appendChild(title);
+
+      const chipWrap = document.createElement('div');
+      chipWrap.style.cssText = 'font-size:11px;color:var(--text-sec);';
+      tabs.forEach(t => {
+        const chip = document.createElement('span');
+        chip.style.cssText = 'display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;';
+        chip.textContent = t.title || 'Info';
+        chipWrap.appendChild(chip);
+      });
+      sec.appendChild(chipWrap);
+      body.appendChild(sec);
+    }
+
+    if (!tags.length && !tabs.length) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'font-size:11px;color:var(--text-dim);text-align:center;padding:40px 0;';
+      empty.textContent = 'No additional information. Add it via Edit Properties in draft mode.';
+      body.appendChild(empty);
+    }
+  } else {
+    // Info tab
+    const tab = tabs[ndActiveTab-1];
+    if (tab) {
+      const sec = document.createElement('div');
+      sec.className = 'nd-section';
+      sec.style.flex = '1';
+
+      const pre = document.createElement('pre');
+      pre.className = 'nd-info-pre';
+      pre.style.flex = '1';
+      pre.style.minHeight = '200px';
+      pre.textContent = tab.content || '';
+      sec.appendChild(pre);
+      body.appendChild(sec);
+    }
+  }
+}
+
+function closeNodeDetail() {
+  $('node-detail').classList.remove('show');
+  if (!savedVT) return;
+  const targetX=savedVT.x, targetY=savedVT.y, targetS=savedVT.s;
+  savedVT=null;
+  const startX=vt.x, startY=vt.y, startS=vt.s;
+  const dur=380, start=performance.now();
+  function step(now) {
+    const t = Math.min((now-start)/dur, 1);
+    const e = t<0.5 ? 2*t*t : -1+(4-2*t)*t;
+    vt.x = startX+(targetX-startX)*e;
+    vt.y = startY+(targetY-startY)*e;
+    vt.s = startS+(targetS-startS)*e;
+    applyVT();
+    if (t<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+function renameMap() {
+  $('rename-input').value = mapName;
+  $('rename-modal-overlay').classList.add('show');
+  $('rename-input').focus();
+  $('rename-input').select();
+}
+
+function closeRenameModal() {
+  $('rename-modal-overlay').classList.remove('show');
+}
+
+function saveRenameModal() {
+  const name = $('rename-input').value.trim().slice(0, MAX_NAME_LEN);
+  if (name) {
+    mapName = name;
+    $('map-name-display').textContent = mapName;
+    toast('Renamed','info');
+  }
+  closeRenameModal();
+}
+
+// Allow Enter to confirm rename
+$('rename-input')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveRenameModal();
+  if (e.key === 'Escape') closeRenameModal();
+});
+let confirmModalResolve = null;
+function showConfirmModal(msg) {
+  return new Promise(resolve => {
+    $('confirm-modal-msg').textContent = msg;
+    $('confirm-modal-overlay').style.display = 'flex';
+    confirmModalResolve = (result) => {
+      $('confirm-modal-overlay').style.display = 'none';
+      confirmModalResolve = null;
+      resolve(result);
+    };
+  });
+}
+
+async function clearAll() {
+  if(!nodes.length&&!edges.length) return;
+  const ok = await showConfirmModal('Clear the entire map? This cannot be undone.');
+  if(!ok) return;
+  nodes=[];edges=[];selectedNodes.clear();selectedEdge=null;render();toast('Cleared','info');
+}
+
+// ═══════════════════════════════════════════════════
+// BOOT DEMO
+// ═══════════════════════════════════════════════════
+(function demo(){
+  const fw=addNode('firewall',320,40,false); fw.name='pf-firewall'; fw.ip='10.0.0.1/24'; fw.notes='OPNsense';
+  const rt=addNode('router',100,180,false);  rt.name='core-router'; rt.ip='10.0.1.1/24';
+  const sw=addNode('switch',540,180,false);  sw.name='core-sw-01';  sw.ip='10.0.2.1/24';
+
+  const vl=addNode('vlan',60,330,false); vl.name='VLAN 10'; vl.ip='10.0.10.0/24'; vl.vlan='VLAN 10 — Servers';
+  const s1=addNode('server',0,0,false); s1.name='web-01';   s1.ip='10.0.10.10/24'; s1.notes='nginx';    s1.parentId=vl.id;
+  const s2=addNode('server',0,0,false); s2.name='db-01';    s2.ip='10.0.10.11/24'; s2.notes='postgres'; s2.parentId=vl.id;
+  const s3=addNode('server',0,0,false); s3.name='cache-01'; s3.ip='10.0.10.12/24'; s3.notes='redis';    s3.parentId=vl.id;
+  snapChildren(vl.id);
+
+  const ws=addNode('workstation',540,330,false); ws.name='dev-ws-01'; ws.ip='10.0.4.20/24';
+
+  edges.push({id:nextId++,from:fw.id,to:rt.id});
+  edges.push({id:nextId++,from:fw.id,to:sw.id});
+  edges.push({id:nextId++,from:rt.id,to:vl.id});
+  edges.push({id:nextId++,from:sw.id,to:ws.id});
+  edges.push({id:nextId++,from:rt.id,to:sw.id});
+
+  render(); fitToScreen();
+})();
+</script>
+</body>
+</html>
