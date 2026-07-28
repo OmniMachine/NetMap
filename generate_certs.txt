@@ -1,0 +1,5 @@
+# Self-signed — browser exception required once per device
+mkdir certs
+openssl req -x509 -newkey rsa:4096 -days 3650 -nodes \
+  -keyout certs/key.pem -out certs/cert.pem \
+  -subj "/CN=netmap" -addext "subjectAltName=IP:192.168.x.x,DNS:netmap.home"
