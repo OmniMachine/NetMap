@@ -907,7 +907,7 @@ function addNode(type,x,y,doRender=true){
 function selectEdge(id){selectedEdge=id;selectedNodes.clear();selectedTagInfo=null;highlightedEdges.clear();renderEdges();renderNodes();}
 function collectDeleteSet(rootIds){const queue=[...rootIds],idSet=new Set();let head=0;while(head<queue.length){const id=queue[head++];if(idSet.has(id))continue;idSet.add(id);const n=nodes.find(n=>n.id===id);if(n&&CONTAINER_TYPES.has(n.type))getChildren(id).forEach(c=>queue.push(c.id));}return idSet;}
 function deleteSelected(){if(selectedEdge!==null){pushUndo();edges=edges.filter(e=>e.id!==selectedEdge);selectedEdge=null;render();toast('Edge deleted','info');return;}if(selectedNodes.size>0){pushUndo();const idSet=collectDeleteSet([...selectedNodes]);const parentIds=new Set(nodes.filter(n=>idSet.has(n.id)&&n.parentId&&!idSet.has(n.parentId)).map(n=>n.parentId));nodes=nodes.filter(n=>!idSet.has(n.id));edges=edges.filter(e=>!idSet.has(e.from)&&!idSet.has(e.to));edges.forEach(e=>{if(Array.isArray(e.via))e.via=e.via.filter(v=>!idSet.has(v));});parentIds.forEach(vid=>{if(nodes.find(n=>n.id===vid))relayoutContainer(vid);});if(selectedEdge!==null&&!edges.some(e=>e.id===selectedEdge))selectedEdge=null;selectedNodes.clear();toast(`Deleted ${idSet.size} node(s)`,'info');}render();}
-document.addEventListener('keydown',e=>{const tag=document.activeElement?.tagName;if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA')return;
+document.addEventListener('keydown',e=>{const tag=document.activeElement?.tagName;if(e.key!=='Escape'&&(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA'))return;
   // Del/Backspace — tags take priority, then nodes/edges
   if((e.key==='Delete'||e.key==='Backspace')&&mode!=='presentation'){
     if(selectedTagInfo){
