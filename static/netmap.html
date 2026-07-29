@@ -241,6 +241,31 @@
   .presence-banner svg{flex-shrink:0;opacity:.8;}
   .pb-reload{background:none;border:1px solid currentColor;border-radius:3px;color:inherit;cursor:pointer;font-family:inherit;font-size:10px;padding:2px 8px;margin-left:auto;opacity:.85;transition:opacity .15s;}
   .pb-reload:hover{opacity:1;}
+
+  /* ── SEARCH ──────────────────────────────────────── */
+  #search-panel{position:fixed;top:52px;left:50%;transform:translateX(-50%);width:500px;max-width:calc(100vw - 32px);background:var(--bg-panel);border:1px solid var(--border-hi);border-radius:8px;box-shadow:0 16px 48px rgba(0,0,0,.75);z-index:1900;display:none;overflow:hidden;}
+  #search-panel.show{display:block;}
+  .search-input-wrap{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);}
+  .search-input-wrap svg{flex-shrink:0;color:var(--text-dim);}
+  #search-input{flex:1;background:transparent;border:none;outline:none;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text-pri);}
+  #search-input::placeholder{color:var(--text-dim);}
+  .search-results{max-height:360px;overflow-y:auto;}
+  .search-results::-webkit-scrollbar{width:4px;}
+  .search-results::-webkit-scrollbar-track{background:transparent;}
+  .search-results::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:2px;}
+  .search-empty{padding:28px;text-align:center;font-size:11px;color:var(--text-dim);letter-spacing:.3px;}
+  .search-result{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background .1s;border-bottom:1px solid var(--border);}
+  .search-result:last-child{border-bottom:none;}
+  .search-result:hover{background:var(--bg-card);}
+  .search-result.sr-active{background:rgba(59,130,246,.1);outline:none;}
+  .search-result.sr-offline{opacity:0.45;}
+  .sr-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .sr-info{flex:1;min-width:0;}
+  .sr-name{font-size:12px;color:var(--text-pri);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sr-meta{font-size:10px;color:var(--text-dim);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sr-badge{font-family:'Rajdhani',sans-serif;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;flex-shrink:0;padding:2px 7px;border-radius:3px;background:rgba(255,255,255,.05);}
+  .search-footer{display:flex;justify-content:space-between;padding:5px 16px;border-top:1px solid var(--border);font-size:9px;color:var(--text-dim);letter-spacing:.5px;}
+  .search-footer kbd{background:var(--bg-card);border:1px solid var(--border);border-radius:3px;padding:1px 4px;font-family:inherit;}
 </style>
 </head>
 <body>
@@ -263,6 +288,8 @@
     </div>
     <div class="tb-spacer"></div>
     <div id="tb-right">
+      <button class="tb-btn" onclick="toggleSearch()" title="Search nodes (Ctrl+F)" style="padding:0 10px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+      <div class="tb-sep"></div>
       <button class="tb-btn" onclick="undo()" title="Undo (Ctrl+Z)" style="padding:0 10px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10a5 5 0 010 10h-2"/><polyline points="7 6 3 10 7 14"/></svg></button>
       <button class="tb-btn" onclick="redo()" title="Redo (Ctrl+Y)" style="padding:0 10px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10H11a5 5 0 000 10h2"/><polyline points="17 6 21 10 17 14"/></svg></button>
       <div class="tb-sep"></div>
@@ -295,6 +322,20 @@
     <div class="mpp-list" id="mpp-list"><div class="mpp-empty">Loading…</div></div>
   </div>
 
+  <!-- Search panel -->
+  <div id="search-panel">
+    <div class="search-input-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="search-input" type="text" placeholder="Search by name, IP, tag, notes…" autocomplete="off" spellcheck="false"/>
+    </div>
+    <div class="search-results" id="search-results"><div class="search-empty">Type to search nodes</div></div>
+    <div class="search-footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+      <span><kbd>Enter</kbd> jump to node</span>
+      <span><kbd>Esc</kbd> close</span>
+    </div>
+  </div>
+
   <div id="workspace">
     <div id="sidebar">
       <div class="sidebar-section">
@@ -313,6 +354,7 @@
           <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'wap')"><div class="palette-icon" style="background:rgba(99,102,241,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5"><path d="M12 13a1.5 1.5 0 110 .01" fill="#6366f1"/><path d="M7.5 9.5a6.5 6.5 0 019 0" stroke-linecap="round"/><path d="M3.5 6a12 12 0 0117 0" stroke-linecap="round"/><line x1="12" y1="14.5" x2="12" y2="20" stroke-linecap="round"/><line x1="8.5" y1="20" x2="15.5" y2="20" stroke-linecap="round"/></svg></div>WAP</div>
           <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'camera')"><div class="palette-icon" style="background:rgba(100,116,139,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><path d="M2 8h13a1 1 0 011 1v8a1 1 0 01-1 1H2a1 1 0 01-1-1V9a1 1 0 011-1z"/><path d="M16 11l5-3v8l-5-3z" stroke-linejoin="round"/><circle cx="8" cy="13" r="2.5"/></svg></div>Camera</div>
           <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'other')"><div class="palette-icon" style="background:rgba(120,113,108,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#78716c" stroke-width="1.5"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="8" cy="12" r="1" fill="#78716c"/><circle cx="12" cy="12" r="1" fill="#78716c"/><circle cx="16" cy="12" r="1" fill="#78716c"/></svg></div>Other</div>
+          <div class="palette-item" draggable="true" ondragstart="paletteDrag(event,'person')"><div class="palette-icon" style="background:rgba(244,63,94,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke-linecap="round"/></svg></div>Person</div>
         </div>
       </div>
       <div class="sidebar-section">
@@ -364,6 +406,7 @@
         <div class="legend-item"><div class="legend-dot" style="background:#6366f1"></div>WAP</div>
         <div class="legend-item"><div class="legend-dot" style="background:#64748b"></div>Camera</div>
         <div class="legend-item"><div class="legend-dot" style="background:#78716c"></div>Other</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f43f5e"></div>Person</div>
         <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div>VLAN</div>
         <div class="legend-item"><div class="legend-dot" style="background:#eab308"></div>Site</div>
         <div class="legend-item"><div class="legend-dot" style="background:#2dd4bf"></div>Group</div>
@@ -425,6 +468,7 @@
         <option value="firewall">Firewall</option><option value="gateway">Gateway</option>
         <option value="modem">Modem</option><option value="wap">WAP</option>
         <option value="camera">Camera</option><option value="other">Other Device</option>
+        <option value="person">Person</option>
         <option value="vlan">VLAN</option><option value="site">Site</option><option value="group">Group</option>
       </select>
     </div>
@@ -476,13 +520,13 @@
 </div>
 
 <script>
-const ALLOWED_TYPES=new Set(['server','workstation','router','switch','firewall','vlan','modem','gateway','wap','camera','other','site','group']);
+const ALLOWED_TYPES=new Set(['server','workstation','router','switch','firewall','vlan','modem','gateway','wap','camera','other','site','group','person']);
 const ALLOWED_TAG_TYPES=new Set(['implant','av','custom']);
-const COL={server:'#3b82f6',workstation:'#10b981',router:'#f59e0b',switch:'#22d3ee',firewall:'#ef4444',vlan:'#a855f7',modem:'#ec4899',gateway:'#fb923c',wap:'#6366f1',camera:'#64748b',other:'#78716c',site:'#eab308',group:'#2dd4bf'};
-const DEF_W={server:140,workstation:140,router:140,switch:140,firewall:140,vlan:164,modem:140,gateway:140,wap:140,camera:140,other:140,site:164,group:164};
-const DEF_H={server:60,workstation:60,router:60,switch:60,firewall:60,vlan:200,modem:60,gateway:60,wap:60,camera:60,other:60,site:200,group:200};
-const MIN_W={server:100,workstation:100,router:100,switch:100,firewall:100,vlan:164,modem:100,gateway:100,wap:100,camera:100,other:100,site:164,group:164};
-const MIN_H={server:48,workstation:48,router:48,switch:48,firewall:48,vlan:100,modem:48,gateway:48,wap:48,camera:48,other:48,site:100,group:100};
+const COL={server:'#3b82f6',workstation:'#10b981',router:'#f59e0b',switch:'#22d3ee',firewall:'#ef4444',vlan:'#a855f7',modem:'#ec4899',gateway:'#fb923c',wap:'#6366f1',camera:'#64748b',other:'#78716c',site:'#eab308',group:'#2dd4bf',person:'#f43f5e'};
+const DEF_W={server:140,workstation:140,router:140,switch:140,firewall:140,vlan:164,modem:140,gateway:140,wap:140,camera:140,other:140,site:164,group:164,person:140};
+const DEF_H={server:60,workstation:60,router:60,switch:60,firewall:60,vlan:200,modem:60,gateway:60,wap:60,camera:60,other:60,site:200,group:200,person:60};
+const MIN_W={server:100,workstation:100,router:100,switch:100,firewall:100,vlan:164,modem:100,gateway:100,wap:100,camera:100,other:100,site:164,group:164,person:100};
+const MIN_H={server:48,workstation:48,router:48,switch:48,firewall:48,vlan:100,modem:48,gateway:48,wap:48,camera:48,other:48,site:100,group:100,person:48};
 const MAX_NODES=2000,MAX_EDGES=5000,MAX_NAME_LEN=120,MAX_IP_LEN=50,MAX_NOTES_LEN=500,MAX_TAB_CONTENT_LEN=20000,MAX_TABS=200,MAX_TAGS=10,MAX_TAG_LINES=200,MAX_TAG_LINE_LEN=200,MAX_IPS=200,MAX_NAMES=200;
 const CONTAINER_TYPES=new Set(['vlan','site','group']);
 const VH_TOP=38,V_PAD=12,C_W=140,C_H=60,C_GAP=10;
@@ -500,6 +544,7 @@ const ICONS={
   other:`<rect x="1" y="4" width="14" height="10" rx="2" stroke-width="1.2"/><line x1="4" y1="9" x2="4.01" y2="9" stroke-width="2.5" stroke-linecap="round"/><line x1="8" y1="9" x2="8.01" y2="9" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="9" x2="12.01" y2="9" stroke-width="2.5" stroke-linecap="round"/>`,
   site:`<path d="M8 1c-3 0-5.5 2.4-5.5 5.4C2.5 10.5 8 15 8 15s5.5-4.5 5.5-8.6C13.5 3.4 11 1 8 1z" stroke-width="1.2"/><circle cx="8" cy="6.3" r="2" stroke-width="1.2"/>`,
   group:`<rect x="1" y="1" width="9" height="9" rx="1.5" stroke-width="1.2"/><rect x="6" y="6" width="9" height="9" rx="1.5" stroke-width="1.2"/>`,
+  person:`<circle cx="8" cy="5.5" r="3.2" stroke-width="1.2"/><path d="M1.5 15.5c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke-width="1.2" stroke-linecap="round"/>`,
 };
 const EDGE_COLOURS=[
   {id:'default',hex:'#2e3a52',label:'Default'},
@@ -531,6 +576,7 @@ let clipboard=null;        // {nodes, edges} — copied selection
 let lastCanvasPos=null;    // last cursor position over canvas in world coords (for paste targeting)
 let lastEdgeClick={id:null,time:0}; // tracks clicks for dblclick-on-edge detection
 let lastTagClick={nodeId:null,tag:null,time:0}; // same for tags
+let lastNodeClick={id:null,time:0};  // same for nodes (nodeMD calls render() which destroys dblclick target)
 
 // ── UNDO / REDO ────────────────────────────────────
 let undoStack=[],redoStack=[];
@@ -539,7 +585,7 @@ function snapshotState(){return JSON.stringify({nodes,edges,mapName,nextId});}
 function restoreState(s){const d=JSON.parse(s);nodes=d.nodes;edges=d.edges;mapName=d.mapName;nextId=d.nextId;}
 function pushUndo(){undoStack.push(snapshotState());if(undoStack.length>MAX_UNDO)undoStack.shift();redoStack=[];scheduleAutosave();}
 function pushUndoIfChanged(b){if(!b||b===snapshotState())return;undoStack.push(b);if(undoStack.length>MAX_UNDO)undoStack.shift();redoStack=[];}
-function resetTransientUiState(){selectedNodes.clear();selectedEdge=null;highlightedEdges.clear();hoverWeb.clear();closeModal();closeEdgeModal();closeTagModal();closeNodeDetail();hideCtx();cancelEdge();$('map-name-display').textContent=mapName;}
+function resetTransientUiState(){selectedNodes.clear();selectedEdge=null;selectedTagInfo=null;highlightedEdges.clear();hoverWeb.clear();closeModal();closeEdgeModal();closeTagModal();closeNodeDetail();hideCtx();cancelEdge();lastNodeClick={id:null,time:0};$('map-name-display').textContent=mapName;}
 function undo(){if(!undoStack.length){toast('Nothing to undo','info');return;}redoStack.push(snapshotState());restoreState(undoStack.pop());resetTransientUiState();render();toast('Undo','info');}
 function redo(){if(!redoStack.length){toast('Nothing to redo','info');return;}undoStack.push(snapshotState());restoreState(redoStack.pop());resetTransientUiState();render();toast('Redo','info');}
 
@@ -596,7 +642,7 @@ function buildNode(n){
   if((n.tags||[]).length>0)buildTags(g,n,W);
   if(mode==='draft'&&tool!=='pan'){[[W/2,0],[W/2,H],[0,H/2],[W,H/2]].forEach(([px,py])=>{const c=svgEl('circle');c.setAttribute('class','port-dot');c.setAttribute('cx',px);c.setAttribute('cy',py);c.setAttribute('r',5);g.appendChild(c);});}
   if(mode==='draft'&&sel&&!n.parentId){const SZ=7;[['nw',0,0],['n',W/2,0],['ne',W,0],['w',0,H/2],['e',W,H/2],['sw',0,H],['s',W/2,H],['se',W,H]].forEach(([hid,hx,hy])=>{const r=svgEl('rect');r.setAttribute('class',`rh ${hid}`);r.setAttribute('x',hx-SZ/2);r.setAttribute('y',hy-SZ/2);r.setAttribute('width',SZ);r.setAttribute('height',SZ);r.setAttribute('rx',1.5);r.addEventListener('mousedown',e=>{e.stopPropagation();startResize(e,n.id,hid);});g.appendChild(r);});}
-  if(!locked){g.addEventListener('mousedown',e=>nodeMD(e,n.id));g.addEventListener('dblclick',e=>{e.stopPropagation();openEditModal(n.id);});g.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();showCtx(e,'node',n.id);});}
+  if(!locked){g.addEventListener('mousedown',e=>nodeMD(e,n.id));g.addEventListener('dblclick',e=>{e.stopPropagation();});g.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();showCtx(e,'node',n.id);});}
   else{g.addEventListener('click',e=>{e.stopPropagation();if(selectedNodes.has(n.id)&&selectedNodes.size===1){selectedNodes.clear();highlightedEdges.clear();closeNodeDetail();renderEdges();}else{selectedNodes.clear();selectedNodes.add(n.id);updateSpiderweb();renderEdges();zoomToNode(n.id);}});g.addEventListener('mouseenter',()=>{hoverWeb=computeWebEdges(new Set([n.id]));renderEdges();});g.addEventListener('mouseleave',()=>{hoverWeb.clear();renderEdges();});g.style.cursor='pointer';}
   return g;
 }
@@ -767,7 +813,14 @@ function renderEdges(){
 function edgeColourHex(e){const c=EDGE_COLOURS.find(c=>c.id===(e.colour||'default'));return c?c.hex:'#2e3a52';}
 
 // ── NODE MOUSE EVENTS ──────────────────────────────
-function nodeMD(e,id){if(mode==='presentation')return;e.stopPropagation();hideCtx();if(tool==='edge'){edgeStart===null?startEdge(id):completeEdge(id);return;}const n=nodes.find(n=>n.id===id);if(!n)return;const wasSelected=selectedNodes.has(id),hadEdge=selectedEdge!==null;if(!e.shiftKey&&!e.ctrlKey&&!e.metaKey&&!wasSelected)selectedNodes.clear();selectedNodes.add(id);selectedEdge=null;selectedTagInfo=null;updateSpiderweb();const pt=svgPt(e);dragging={id,sx:pt.x,sy:pt.y,ox:n.x,oy:n.y,beforeSnap:snapshotState()};if(!wasSelected||hadEdge)render();else renderEdges();}
+function nodeMD(e,id){if(mode==='presentation')return;e.stopPropagation();hideCtx();if(tool==='edge'){edgeStart===null?startEdge(id):completeEdge(id);return;}const n=nodes.find(n=>n.id===id);if(!n)return;
+  // Detect double-click here in mousedown rather than via the dblclick event.
+  // nodeMD calls render() on first click which destroys and recreates SVG elements,
+  // so the browser never sees both clicks on the same DOM node and dblclick doesn't fire.
+  const now=Date.now();
+  if(lastNodeClick.id===id&&now-lastNodeClick.time<300){lastNodeClick={id:null,time:0};openEditModal(id);return;}
+  lastNodeClick={id,time:now};
+  const wasSelected=selectedNodes.has(id),hadEdge=selectedEdge!==null;if(!e.shiftKey&&!e.ctrlKey&&!e.metaKey&&!wasSelected)selectedNodes.clear();selectedNodes.add(id);selectedEdge=null;selectedTagInfo=null;updateSpiderweb();const pt=svgPt(e);dragging={id,sx:pt.x,sy:pt.y,ox:n.x,oy:n.y,beforeSnap:snapshotState()};if(!wasSelected||hadEdge)render();else renderEdges();}
 function computeWebEdges(startIds){const result=new Set();if(!startIds||startIds.size===0)return result;const isWebEdge=e=>(e.colour&&e.colour!=='default')||(e.label&&e.label.trim());const adj=new Map();const link=(a,b,edgeId)=>{if(!adj.has(a))adj.set(a,[]);adj.get(a).push({to:b,edgeId});};edges.forEach(e=>{if(isWebEdge(e)){link(e.from,e.to,e.id);link(e.to,e.from,e.id);}});nodes.forEach(n=>{if(n.parentId!=null){link(n.id,n.parentId,null);link(n.parentId,n.id,null);}});const visited=new Set(startIds),queue=[...startIds];while(queue.length){const cur=queue.shift();const curNode=nodes.find(nn=>nn.id===cur);if(curNode&&curNode.excludeWeb)continue;for(const{to,edgeId}of(adj.get(cur)||[])){if(edgeId!==null)result.add(edgeId);if(!visited.has(to)){visited.add(to);queue.push(to);}}}return result;}
 function updateSpiderweb(){highlightedEdges.clear();computeWebEdges(selectedNodes).forEach(id=>highlightedEdges.add(id));}
 function startResize(e,id,handle){e.stopPropagation();const n=nodes.find(n=>n.id===id);if(!n)return;const pt=svgPt(e);resizing={id,handle,sx:pt.x,sy:pt.y,ox:n.x,oy:n.y,ow:nW(n),oh:nH(n),beforeSnap:snapshotState()};}
@@ -807,6 +860,10 @@ function canvasMU(e){
       if(oldParentIsFree){if(e.altKey){const op=oldParent.id;n.parentId=null;relayoutContainer(op);toast('Removed from group','info');}else{autoFitContainer(oldParent.id);}n._detachArmed=false;render();}
       else{const ctr={x:n.x+nW(n)/2,y:n.y+nH(n)/2};const exclude=CONTAINER_TYPES.has(n.type)?new Set([n.id,...getDescendantIds(n.id)]):n.id;const vid=hitContainer(ctr,exclude);
         if(vid!==null&&n.parentId!==vid){if(n.parentId){const op=n.parentId;n.parentId=null;relayoutContainer(op);}n.parentId=vid;relayoutContainer(vid);toast('Snapped into group','success');render();}
+        // BUG FIX: center still inside the same compact container but body may extend outside.
+        // Without this branch, relayoutContainer is never called and the node stays at whatever
+        // position it was dragged to, potentially visually escaping the container bounds.
+        else if(n.parentId&&vid===n.parentId&&oldParent&&oldParent.layout!=='free'){relayoutContainer(n.parentId);render();}
         else if(n.parentId&&vid===null&&oldParent){const inside=n.x>=oldParent.x&&n.y>=oldParent.y&&n.x+nW(n)<=oldParent.x+nW(oldParent)&&n.y+nH(n)<=oldParent.y+nH(oldParent);if(!inside){const op=n.parentId;n.parentId=null;relayoutContainer(op);toast('Removed from group','info');render();}}}}
     pushUndoIfChanged(dragging.beforeSnap);dragging=null;
   }
@@ -840,7 +897,7 @@ function cancelEdge(){edgeStart=null;$('edge-hint').style.display='none';const t
 function addNode(type,x,y,doRender=true){
   if(!ALLOWED_TYPES.has(type))type='other';
   const count=nodes.filter(n=>n.type===type).length+1;
-  const pfx={server:'server',workstation:'ws',router:'router',switch:'sw',firewall:'fw',vlan:'VLAN',modem:'modem',gateway:'gw',wap:'wap',camera:'cam',other:'device',site:'site',group:'group'};
+  const pfx={server:'server',workstation:'ws',router:'router',switch:'sw',firewall:'fw',vlan:'VLAN',modem:'modem',gateway:'gw',wap:'wap',camera:'cam',other:'device',site:'site',group:'group',person:'person'};
   const defaultName=`${pfx[type]||type}-${String(count).padStart(2,'0')}`;
   const n={id:nextId++,type,x:x??100+Math.random()*300,y:y??100+Math.random()*200,w:DEF_W[type]||140,h:DEF_H[type]||60,name:defaultName,names:[defaultName],ip:'',ips:[],vlan:'',notes:'',infoTabs:[],parentId:null,tags:[],offline:false,excludeWeb:CONTAINER_TYPES.has(type),layout:CONTAINER_TYPES.has(type)?'compact':undefined,expanded:false,collapsedH:null,colourId:null};
   nodes.push(n);if(doRender)render();return n;
@@ -864,6 +921,7 @@ document.addEventListener('keydown',e=>{const tag=document.activeElement?.tagNam
   if((e.ctrlKey||e.metaKey)&&((e.shiftKey&&e.key.toLowerCase()==='z')||e.key.toLowerCase()==='y')&&mode!=='presentation'){e.preventDefault();redo();}
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'&&mode!=='presentation'){e.preventDefault();copySelected();}
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'&&mode!=='presentation'){e.preventDefault();pasteClipboard();}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f'){e.preventDefault();toggleSearch();}
 });
 
 // ── CONTEXT MENU ───────────────────────────────────
@@ -1022,7 +1080,25 @@ function setTool(t){tool=t;['select','edge','pan'].forEach(tt=>$(`tool-${tt}`)?.
 function zoomIn(){adjZ(1.2);}function zoomOut(){adjZ(0.83);}function resetZoom(){vt={x:0,y:0,s:1};applyVT();}
 function adjZ(f){const w=$('canvas-wrap'),cx=w.clientWidth/2,cy=w.clientHeight/2;const ns=Math.max(0.1,Math.min(4,vt.s*f));vt.x=cx-(cx-vt.x)*(ns/vt.s);vt.y=cy-(cy-vt.y)*(ns/vt.s);vt.s=ns;applyVT();}
 function fitToScreen(){if(!nodes.length){resetZoom();return;}const w=$('canvas-wrap'),W=w.clientWidth,H=w.clientHeight;let mnX=1e9,mnY=1e9,mxX=-1e9,mxY=-1e9;nodes.forEach(n=>{mnX=Math.min(mnX,n.x);mnY=Math.min(mnY,n.y);mxX=Math.max(mxX,n.x+nW(n));mxY=Math.max(mxY,n.y+nH(n));});const pad=60,extW=mxX-mnX||1,extH=mxY-mnY||1;const avW=Math.max(1,W-pad*2),avH=Math.max(1,H-pad*2);const sc=Math.max(0.01,Math.min(avW/extW,avH/extH,2));vt.s=sc;vt.x=(W-extW*sc)/2-mnX*sc;vt.y=(H-extH*sc)/2-mnY*sc;applyVT();}
-function autoLayout(){pushUndo();const containers=nodes.filter(n=>CONTAINER_TYPES.has(n.type));const tops=nodes.filter(n=>!n.parentId&&!CONTAINER_TYPES.has(n.type));const H_GAP=60,V_GAP=80,canvasW=$('canvas-wrap').clientWidth||1200,START_X=60;let x=START_X,y=60,rowMaxH=0,sectionMaxY=60;containers.forEach(v=>{relayoutContainer(v.id);const vw=nW(v),vh=nH(v);if(x>START_X&&x+vw>canvasW-START_X){y+=rowMaxH+V_GAP;x=START_X;rowMaxH=0;}const ddx=x-v.x,ddy=y-v.y;v.x=x;v.y=y;if(v.layout==='free')shiftDescendants(v.id,ddx,ddy);else relayoutContainer(v.id);x+=vw+H_GAP;rowMaxH=Math.max(rowMaxH,vh);sectionMaxY=Math.max(sectionMaxY,y+vh);});if(tops.length>0){const baseY=containers.length>0?sectionMaxY+V_GAP:60;const cols=Math.min(5,Math.ceil(Math.sqrt(tops.length)));const cellW=tops.reduce((m,n)=>Math.max(m,nW(n)),0)+H_GAP;const cellH=tops.reduce((m,n)=>Math.max(m,nH(n)),0)+V_GAP;tops.forEach((n,i)=>{n.x=START_X+(i%cols)*cellW;n.y=baseY+Math.floor(i/cols)*cellH;});}render();fitToScreen();toast('Auto-arranged','success');}
+function autoLayout(){pushUndo();
+  // Only top-level containers — nested ones are repositioned by their parent's reflowChildren
+  const containers=nodes.filter(n=>CONTAINER_TYPES.has(n.type)&&!n.parentId);
+  const tops=nodes.filter(n=>!n.parentId&&!CONTAINER_TYPES.has(n.type));
+  const H_GAP=60,V_GAP=80,canvasW=$('canvas-wrap').clientWidth||1200,START_X=60;
+  let x=START_X,y=60,rowMaxH=0,sectionMaxY=60;
+  containers.forEach(v=>{
+    // Layout children first so we know the container's size before positioning it
+    relayoutContainer(v.id);
+    const vw=nW(v),vh=nH(v);
+    if(x>START_X&&x+vw>canvasW-START_X){y+=rowMaxH+V_GAP;x=START_X;rowMaxH=0;}
+    const ddx=x-v.x,ddy=y-v.y;
+    v.x=x;v.y=y;
+    // Shift children to follow the container's new position
+    if(v.layout==='free')shiftDescendants(v.id,ddx,ddy);else relayoutContainer(v.id);
+    x+=vw+H_GAP;rowMaxH=Math.max(rowMaxH,vh);sectionMaxY=Math.max(sectionMaxY,y+vh);
+  });
+  if(tops.length>0){const baseY=containers.length>0?sectionMaxY+V_GAP:60;const cols=Math.min(5,Math.ceil(Math.sqrt(tops.length)));const cellW=tops.reduce((m,n)=>Math.max(m,nW(n)),0)+H_GAP;const cellH=tops.reduce((m,n)=>Math.max(m,nH(n)),0)+V_GAP;tops.forEach((n,i)=>{n.x=START_X+(i%cols)*cellW;n.y=baseY+Math.floor(i/cols)*cellH;});}
+  render();fitToScreen();toast('Auto-arranged','success');}
 
 // ── MINIMAP ────────────────────────────────────────
 function updateMinimap(){const layer=$('mm-content');layer.innerHTML='';if(!nodes.length)return;let mnX=1e9,mnY=1e9,mxX=-1e9,mxY=-1e9;nodes.forEach(n=>{mnX=Math.min(mnX,n.x);mnY=Math.min(mnY,n.y);mxX=Math.max(mxX,n.x+nW(n));mxY=Math.max(mxY,n.y+nH(n));});const mmW=180,mmH=120,pad=8,extW=mxX-mnX||1,extH=mxY-mnY||1;const sc=Math.max(0.001,Math.min((mmW-pad*2)/extW,(mmH-pad*2)/extH));edges.forEach(e=>{const fn=nodes.find(n=>n.id===e.from),tn=nodes.find(n=>n.id===e.to);if(!fn||!tn)return;const l=svgEl('line');l.setAttribute('x1',pad+(fn.x+nW(fn)/2-mnX)*sc);l.setAttribute('y1',pad+(fn.y+nH(fn)/2-mnY)*sc);l.setAttribute('x2',pad+(tn.x+nW(tn)/2-mnX)*sc);l.setAttribute('y2',pad+(tn.y+nH(tn)/2-mnY)*sc);l.setAttribute('stroke','#2e3a52');l.setAttribute('stroke-width','0.5');layer.appendChild(l);});
@@ -1039,8 +1115,7 @@ function validateAndSanitizeNode(raw){
   const id=Number.isInteger(raw.id)&&raw.id>0?raw.id:null;if(id===null)return null;
   const x=typeof raw.x==='number'&&isFinite(raw.x)?raw.x:0;const y=typeof raw.y==='number'&&isFinite(raw.y)?raw.y:0;
   const w=typeof raw.w==='number'&&raw.w>0?Math.min(raw.w,2000):DEF_W[type]||140;const h=typeof raw.h==='number'&&raw.h>0?Math.min(raw.h,2000):DEF_H[type]||60;
-  const parentId=typeof raw.parentId==='number'?raw.parentId:null;
-  const rawTags=Array.isArray(raw.tags)?raw.tags.slice(0,MAX_TAGS):[];
+  const parentId=typeof raw.parentId==='number'?raw.parentId:null;  const rawTags=Array.isArray(raw.tags)?raw.tags.slice(0,MAX_TAGS):[];
   const tags=rawTags.filter(t=>t&&typeof t==='object'&&ALLOWED_TAG_TYPES.has(t.type)).map(t=>{
     const out={type:t.type,lines:Array.isArray(t.lines)?t.lines.slice(0,MAX_TAG_LINES).map(l=>sanitizeString(l,MAX_TAG_LINE_LEN)):[]};
     if(t.type==='custom'){out.label=sanitizeString(t.label||'Custom',40);out.color=/^#[0-9a-fA-F]{6}$/.test(t.color)?t.color:'#8b5cf6';}
@@ -1054,7 +1129,7 @@ function validateAndSanitizeNode(raw){
   return{id,type,x:Math.max(-10000,Math.min(x,100000)),y:Math.max(-10000,Math.min(y,100000)),w,h,name:primaryName,names,ip:ips[0]||'',ips,vlan:sanitizeString(raw.vlan||'',MAX_NAME_LEN),notes:sanitizeString(raw.notes||'',MAX_NOTES_LEN),offline:raw.offline===true,excludeWeb:raw.excludeWeb===true,expanded:raw.expanded===true,collapsedH:typeof raw.collapsedH==='number'&&isFinite(raw.collapsedH)?raw.collapsedH:null,layout:raw.layout==='free'?'free':'compact',parentId,tags,infoTabs,colourId};
 }
 function validateAndSanitizeEdge(raw,nodeIds){if(!raw||typeof raw!=='object')return null;const id=Number.isInteger(raw.id)&&raw.id>0?raw.id:null;const from=Number.isInteger(raw.from)&&nodeIds.has(raw.from)?raw.from:null;const to=Number.isInteger(raw.to)&&nodeIds.has(raw.to)?raw.to:null;if(id===null||from===null||to===null||from===to)return null;const validColours=new Set(EDGE_COLOURS.map(c=>c.id));const validDirs=new Set(['none','forward','backward','both']);let via=[];if(Array.isArray(raw.via)){const seen=new Set();via=raw.via.filter(v=>Number.isInteger(v)&&nodeIds.has(v)&&v!==from&&v!==to&&!seen.has(v)&&seen.add(v)).slice(0,5);}let infoTabs=[];if(Array.isArray(raw.infoTabs)){infoTabs=raw.infoTabs.slice(0,MAX_TABS).map(t=>({title:sanitizeString(t.title||'Info',MAX_NAME_LEN),content:sanitizeString(t.content||'',MAX_TAB_CONTENT_LEN)}));}return{id,from,to,colour:validColours.has(raw.colour)?raw.colour:'default',direction:validDirs.has(raw.direction)?raw.direction:'none',label:sanitizeString(raw.label||'',40),notes:sanitizeString(raw.notes||'',1000),via,infoTabs};}
-function handleFileImport(e){const file=e.target.files[0];if(!file)return;if(file.size>10*1024*1024){toast('Import failed: file too large (max 10 MB)','error');e.target.value='';return;}const reader=new FileReader();reader.onerror=()=>{toast('Import failed: could not read file','error');e.target.value='';};reader.onload=ev=>{try{const data=JSON.parse(ev.target.result);if(!Array.isArray(data.nodes)||!Array.isArray(data.edges))throw new Error('Missing nodes/edges arrays');if(data.nodes.length>MAX_NODES)throw new Error(`Too many nodes (max ${MAX_NODES})`);if(data.edges.length>MAX_EDGES)throw new Error(`Too many edges (max ${MAX_EDGES})`);const sanitizedNodes=data.nodes.map(validateAndSanitizeNode).filter(Boolean);const droppedNodes=data.nodes.length-sanitizedNodes.length;const nodeIds=new Set(sanitizedNodes.map(n=>n.id));sanitizedNodes.forEach(n=>{if(n.parentId!==null&&!nodeIds.has(n.parentId))n.parentId=null;if(n.parentId===n.id)n.parentId=null;});const byId=new Map(sanitizedNodes.map(n=>[n.id,n]));sanitizedNodes.forEach(n=>{const seen=new Set([n.id]);let cur=n;while(cur.parentId!==null){if(seen.has(cur.parentId)){n.parentId=null;break;}seen.add(cur.parentId);cur=byId.get(cur.parentId);if(!cur)break;}});const edgePairs=new Set();const sanitizedEdges=data.edges.map(raw=>validateAndSanitizeEdge(raw,nodeIds)).filter(e=>{if(!e)return false;const key=`${Math.min(e.from,e.to)}-${Math.max(e.from,e.to)}`;if(edgePairs.has(key))return false;edgePairs.add(key);return true;});const maxNodeId=sanitizedNodes.reduce((m,n)=>Math.max(m,n.id),0);const maxEdgeId=sanitizedEdges.reduce((m,e)=>Math.max(m,e.id),0);pushUndo();nodes=sanitizedNodes;edges=sanitizedEdges;mapName=sanitizeString(data.name||'Imported',MAX_NAME_LEN);nextId=Math.max(maxNodeId,maxEdgeId)+1;$('map-name-display').textContent=mapName;render();fitToScreen();const dropWarn=droppedNodes>0?` (${droppedNodes} invalid node(s) skipped)`:'';toast(`Imported "${mapName}" — ${nodes.length} nodes, ${edges.length} edges${dropWarn}`,'success');serverImportSave().catch(()=>{});}catch(err){toast(`Import failed: ${err.message||'invalid JSON'}`,'error');}};reader.readAsText(file);e.target.value='';}
+function handleFileImport(e){const file=e.target.files[0];if(!file)return;if(file.size>10*1024*1024){toast('Import failed: file too large (max 10 MB)','error');e.target.value='';return;}const reader=new FileReader();reader.onerror=()=>{toast('Import failed: could not read file','error');e.target.value='';};reader.onload=ev=>{try{const data=JSON.parse(ev.target.result);if(!Array.isArray(data.nodes)||!Array.isArray(data.edges))throw new Error('Missing nodes/edges arrays');if(data.nodes.length>MAX_NODES)throw new Error(`Too many nodes (max ${MAX_NODES})`);if(data.edges.length>MAX_EDGES)throw new Error(`Too many edges (max ${MAX_EDGES})`);const sanitizedNodes=data.nodes.map(validateAndSanitizeNode).filter(Boolean);const droppedNodes=data.nodes.length-sanitizedNodes.length;const nodeIds=new Set(sanitizedNodes.map(n=>n.id));const byId=new Map(sanitizedNodes.map(n=>[n.id,n]));sanitizedNodes.forEach(n=>{if(n.parentId!==null&&!nodeIds.has(n.parentId))n.parentId=null;if(n.parentId===n.id)n.parentId=null;if(n.parentId!==null){const par=byId.get(n.parentId);if(!par||!CONTAINER_TYPES.has(par.type))n.parentId=null;}});sanitizedNodes.forEach(n=>{const seen=new Set([n.id]);let cur=n;while(cur.parentId!==null){if(seen.has(cur.parentId)){n.parentId=null;break;}seen.add(cur.parentId);cur=byId.get(cur.parentId);if(!cur)break;}});const edgePairs=new Set();const sanitizedEdges=data.edges.map(raw=>validateAndSanitizeEdge(raw,nodeIds)).filter(e=>{if(!e)return false;const key=`${Math.min(e.from,e.to)}-${Math.max(e.from,e.to)}`;if(edgePairs.has(key))return false;edgePairs.add(key);return true;});const maxNodeId=sanitizedNodes.reduce((m,n)=>Math.max(m,n.id),0);const maxEdgeId=sanitizedEdges.reduce((m,e)=>Math.max(m,e.id),0);pushUndo();nodes=sanitizedNodes;edges=sanitizedEdges;mapName=sanitizeString(data.name||'Imported',MAX_NAME_LEN);nextId=Math.max(maxNodeId,maxEdgeId)+1;$('map-name-display').textContent=mapName;render();fitToScreen();const dropWarn=droppedNodes>0?` (${droppedNodes} invalid node(s) skipped)`:'';toast(`Imported "${mapName}" — ${nodes.length} nodes, ${edges.length} edges${dropWarn}`,'success');serverImportSave().catch(()=>{});}catch(err){toast(`Import failed: ${err.message||'invalid JSON'}`,'error');}};reader.readAsText(file);e.target.value='';}
 
 // ── TAG MODAL ──────────────────────────────────────
 let tagEditingId=null,tagModalState=[];
@@ -1458,6 +1533,7 @@ document.addEventListener('click',e=>{
 // ── Presence ───────────────────────────────────────
 let heartbeatTimer = null;
 let pollTimer      = null;
+let mapEventSource = null; // SSE connection for real-time map updates
 
 function startPresence(id){
   stopPresence();
@@ -1471,11 +1547,50 @@ function startPresence(id){
   pollTimer = setInterval(()=>pollPresence(id), 5000);
   // First poll shortly after load
   setTimeout(()=>pollPresence(id), 1000);
+  // Open SSE stream for real-time map updates from other users
+  if(mapEventSource){ mapEventSource.close(); mapEventSource=null; }
+  const es = new EventSource(`/api/maps/${id}/stream`);
+  es.onmessage = async () => {
+    if(!savePending){
+      await silentRefresh(id);
+    } else {
+      // Has unsaved work — let user decide via the stale banner
+      $('pb-stale').classList.add('show');
+    }
+  };
+  mapEventSource = es;
 }
 
 function stopPresence(){
   if (heartbeatTimer){ clearInterval(heartbeatTimer); heartbeatTimer=null; }
   if (pollTimer){ clearInterval(pollTimer); pollTimer=null; }
+  if (mapEventSource){ mapEventSource.close(); mapEventSource=null; }
+}
+
+// Reload map data from server without disturbing the user's viewport or triggering fit-to-screen.
+// Used for silent live updates when another user saves.
+async function silentRefresh(id){
+  try{
+    const res=await api('GET',`/api/maps/${id}`);
+    if(!res.ok) return;
+    const data=await res.json();
+    if(!Array.isArray(data.nodes)||!Array.isArray(data.edges)) return;
+    const sNodes=data.nodes.map(validateAndSanitizeNode).filter(Boolean);
+    const nIds=new Set(sNodes.map(n=>n.id));
+    const sEdges=data.edges.map(r=>validateAndSanitizeEdge(r,nIds)).filter(Boolean);
+    const maxN=sNodes.reduce((m,n)=>Math.max(m,n.id),0);
+    const maxE=sEdges.reduce((m,e)=>Math.max(m,e.id),0);
+    nodes=sNodes; edges=sEdges;
+    mapName=typeof data.name==='string'?data.name.slice(0,MAX_NAME_LEN):mapName;
+    nextId=Math.max(maxN,maxE)+1;
+    $('map-name-display').textContent=mapName;
+    lastServerTime=Math.floor(Date.now()/1000);
+    setSaveStatus('saved');
+    $('pb-stale').classList.remove('show');
+    undoStack=[]; redoStack=[];
+    render(); // no fitToScreen — viewport stays where the user left it
+    toast('Map updated by another user','info');
+  } catch{}
 }
 
 async function pollPresence(id){
@@ -1515,6 +1630,177 @@ window.addEventListener('beforeunload',()=>{
       new Blob([JSON.stringify({session_id:SESSION_ID,leaving:true})],
                {type:'application/json'}));
 });
+
+// ── SEARCH ─────────────────────────────────────────────────────────────────
+let searchOpen      = false;
+let searchActiveIdx = -1;
+let searchResults   = [];
+
+function toggleSearch(){ searchOpen ? closeSearch() : openSearch(); }
+
+function openSearch(){
+  searchOpen = true;
+  $('search-panel').classList.add('show');
+  const inp = $('search-input');
+  inp.focus(); inp.select();
+}
+
+function closeSearch(){
+  searchOpen = false;
+  $('search-panel').classList.remove('show');
+  $('search-input').value = '';
+  searchResults = [];
+  searchActiveIdx = -1;
+  $('search-results').innerHTML = '<div class="search-empty">Type to search nodes</div>';
+}
+
+function searchNodes(q){
+  if(!q.trim()) return [];
+  const lq = q.toLowerCase();
+  const out = [];
+
+  for(const n of nodes){
+    let score = 0;
+    const name = (n.name || '').toLowerCase();
+
+    // Primary name — highest weight
+    if(name === lq)              score += 100;
+    else if(name.startsWith(lq)) score += 60;
+    else if(name.includes(lq))   score += 35;
+
+    // Aliases
+    for(const a of (n.names || []).slice(1))
+      if(a.toLowerCase().includes(lq)) score += 25;
+
+    // IP addresses — common search target
+    if((n.ips || []).some(ip => ip.toLowerCase().includes(lq))) score += 50;
+
+    // Type, VLAN, notes
+    if(n.type.includes(lq))                          score += 10;
+    if((n.vlan  || '').toLowerCase().includes(lq))   score += 15;
+    if((n.notes || '').toLowerCase().includes(lq))   score += 10;
+
+    // Tags (label and lines)
+    for(const tag of (n.tags || [])){
+      if((tag.label || tag.type).toLowerCase().includes(lq)) score += 8;
+      for(const line of (tag.lines || []))
+        if(line.toLowerCase().includes(lq)) score += 5;
+    }
+
+    // Info tab titles and content
+    for(const tab of (n.infoTabs || [])){
+      if((tab.title   || '').toLowerCase().includes(lq)) score += 8;
+      if((tab.content || '').toLowerCase().includes(lq)) score += 5;
+    }
+
+    if(score > 0) out.push({ node: n, score });
+  }
+
+  return out.sort((a, b) => b.score - a.score).slice(0, 20);
+}
+
+function renderSearchResults(q){
+  const list = $('search-results');
+
+  if(!q.trim()){
+    list.innerHTML = '<div class="search-empty">Type to search nodes</div>';
+    searchResults = []; searchActiveIdx = -1;
+    return;
+  }
+
+  searchResults = searchNodes(q);
+  searchActiveIdx = searchResults.length ? 0 : -1;
+
+  if(!searchResults.length){
+    list.innerHTML = `<div class="search-empty">No results for "<strong>${q}</strong>"</div>`;
+    return;
+  }
+
+  list.innerHTML = '';
+  searchResults.forEach(({ node: n }, i) => {
+    const col = nodeColour(n);
+    const row = document.createElement('div');
+    row.className = 'search-result' + (n.offline ? ' sr-offline' : '') + (i === 0 ? ' sr-active' : '');
+
+    const dot = document.createElement('div');
+    dot.className = 'sr-dot'; dot.style.background = col;
+
+    const info = document.createElement('div'); info.className = 'sr-info';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'sr-name'; nameEl.textContent = n.name || '—';
+
+    const meta = document.createElement('div'); meta.className = 'sr-meta';
+    const parts = [];
+    if(n.ips && n.ips.length) parts.push(n.ips[0] + (n.ips.length > 1 ? ` +${n.ips.length - 1}` : ''));
+    if(n.vlan)  parts.push(n.vlan);
+    if(n.notes) parts.push(n.notes.slice(0, 60));
+    meta.textContent = parts.join(' · ') || n.type;
+
+    info.appendChild(nameEl); info.appendChild(meta);
+
+    const badge = document.createElement('div');
+    badge.className = 'sr-badge'; badge.style.color = col;
+    badge.textContent = n.type.toUpperCase();
+
+    row.appendChild(dot); row.appendChild(info); row.appendChild(badge);
+    row.addEventListener('click', () => jumpToSearchResult(i));
+    list.appendChild(row);
+  });
+}
+
+function setSearchActive(idx){
+  const rows = $('search-results').querySelectorAll('.search-result');
+  rows[searchActiveIdx]?.classList.remove('sr-active');
+  searchActiveIdx = (idx + searchResults.length) % searchResults.length;
+  const active = rows[searchActiveIdx];
+  if(active){ active.classList.add('sr-active'); active.scrollIntoView({ block: 'nearest' }); }
+}
+
+function jumpToSearchResult(idx){
+  if(idx < 0 || idx >= searchResults.length) return;
+  const n = searchResults[idx].node;
+  closeSearch();
+
+  selectedNodes.clear(); selectedNodes.add(n.id);
+  selectedEdge = null; selectedTagInfo = null; highlightedEdges.clear();
+  updateSpiderweb();
+
+  if(mode === 'presentation'){
+    renderEdges(); zoomToNode(n.id);
+  } else {
+    render();
+    // Smooth pan to center on the node, keeping current zoom level
+    const wrap=$('canvas-wrap'), W=wrap.clientWidth, H=wrap.clientHeight;
+    const targetS=Math.min(Math.max(vt.s, 0.6), 2);
+    const tx=W/2-(n.x+nW(n)/2)*targetS, ty=H/2-(n.y+nH(n)/2)*targetS;
+    const sx=vt.x, sy=vt.y, ss=vt.s, dur=350, t0=performance.now();
+    (function step(now){
+      const t=Math.min((now-t0)/dur,1), e=t<0.5?2*t*t:-1+(4-2*t)*t;
+      vt.x=sx+(tx-sx)*e; vt.y=sy+(ty-sy)*e; vt.s=ss+(targetS-ss)*e; applyVT();
+      if(t<1) requestAnimationFrame(step);
+    })(t0);
+  }
+}
+
+// Wire up search input events
+(function(){
+  const inp = $('search-input');
+  inp.addEventListener('input',  e => renderSearchResults(e.target.value));
+  inp.addEventListener('keydown', e => {
+    if(e.key === 'ArrowUp')   { e.preventDefault(); if(searchResults.length) setSearchActive(searchActiveIdx - 1); }
+    if(e.key === 'ArrowDown') { e.preventDefault(); if(searchResults.length) setSearchActive(searchActiveIdx + 1); }
+    if(e.key === 'Enter')     { jumpToSearchResult(searchActiveIdx); }
+    if(e.key === 'Escape')    { closeSearch(); }
+  });
+})();
+
+// Close search when clicking outside
+document.addEventListener('click', e => {
+  if(!searchOpen) return;
+  const panel = $('search-panel');
+  if(panel && !panel.contains(e.target) && e.target.id !== 'search-btn') closeSearch();
+}, true);
 
 // ── Page init ──────────────────────────────────────
 async function initServer(){
