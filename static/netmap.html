@@ -437,6 +437,7 @@
   <div class="ctx-item" id="ctx-offline" onclick="ctxToggleOffline()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span id="ctx-offline-label">Toggle Offline</span></div>
   <div class="ctx-item" id="ctx-web-exclude" onclick="ctxToggleWebExclude()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="7" y1="7" x2="17" y2="17"/><line x1="17" y1="7" x2="7" y2="17"/></svg><span id="ctx-web-exclude-label">Exclude from Web</span></div>
   <div class="ctx-item" id="ctx-layout" onclick="ctxToggleLayout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><path d="M10 6.5h4a2 2 0 012 2v6" stroke-dasharray="2,1.5"/></svg><span id="ctx-layout-label">Switch to Free Layout</span></div>
+  <div class="ctx-item" id="ctx-lock-border" onclick="ctxToggleLockBorder()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><span id="ctx-lock-border-label">Lock Border</span></div>
   <div class="ctx-item" id="ctx-expand" onclick="ctxToggleExpand()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg><span id="ctx-expand-label">Expand Node</span></div>
   <div class="ctx-item" id="ctx-edge-edit" onclick="ctxEdgeEdit()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="15 8 19 12 15 16"/><circle cx="5" cy="12" r="2"/></svg>Edit Connection</div>
   <div class="ctx-sep"></div>
@@ -584,7 +585,7 @@ const MAX_UNDO=50;
 function snapshotState(){return JSON.stringify({nodes,edges,mapName,nextId});}
 function restoreState(s){const d=JSON.parse(s);nodes=d.nodes;edges=d.edges;mapName=d.mapName;nextId=d.nextId;}
 function pushUndo(){undoStack.push(snapshotState());if(undoStack.length>MAX_UNDO)undoStack.shift();redoStack=[];scheduleAutosave();}
-function pushUndoIfChanged(b){if(!b||b===snapshotState())return;undoStack.push(b);if(undoStack.length>MAX_UNDO)undoStack.shift();redoStack=[];}
+function pushUndoIfChanged(b){if(!b||b===snapshotState())return;undoStack.push(b);if(undoStack.length>MAX_UNDO)undoStack.shift();redoStack=[];scheduleAutosave();}
 function resetTransientUiState(){selectedNodes.clear();selectedEdge=null;selectedTagInfo=null;highlightedEdges.clear();hoverWeb.clear();closeModal();closeEdgeModal();closeTagModal();closeNodeDetail();hideCtx();cancelEdge();lastNodeClick={id:null,time:0};$('map-name-display').textContent=mapName;}
 function undo(){if(!undoStack.length){toast('Nothing to undo','info');return;}redoStack.push(snapshotState());restoreState(undoStack.pop());resetTransientUiState();render();toast('Undo','info');}
 function redo(){if(!redoStack.length){toast('Nothing to redo','info');return;}undoStack.push(snapshotState());restoreState(redoStack.pop());resetTransientUiState();render();toast('Redo','info');}
@@ -600,7 +601,7 @@ function nH(n){return n.h||DEF_H[n.type]||60;}
 function trunc(s,len){return s&&s.length>len?s.slice(0,len)+'…':(s||'');}
 function applyVT(){$('canvas-root').setAttribute('transform',`translate(${vt.x},${vt.y}) scale(${vt.s})`);const p=Math.round(vt.s*100);$('zoom-label').textContent=p+'%';$('stat-zoom').textContent=`Zoom: ${p}%`;updateMinimap();}
 function toast(msg,type='info'){const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=msg;$('toast-wrap').appendChild(el);setTimeout(()=>{el.style.cssText='opacity:0;transition:opacity .3s';setTimeout(()=>el.remove(),300);},2200);}
-function snap(v,g=16){return Math.round(v/g)*g;}
+function snap(v,g=4){return Math.round(v/g)*g;}
 function snap8(v){return Math.round(v/8)*8;}
 function updateStats(){$('stat-nodes').textContent=`Nodes: ${nodes.length}`;$('stat-edges').textContent=`Edges: ${edges.length}`;}
 // Returns the effective display colour for a node (respects colourId override)
@@ -620,7 +621,45 @@ function flowLayoutKids(kids,innerWidth){const rows=[];let curRow=[],curRowW=0;k
 function minVlanSize(kids,innerWidth,type='vlan'){const minW0=MIN_W[type]||MIN_W.vlan,minH0=MIN_H[type]||MIN_H.vlan;if(!kids.length)return{w:minW0,h:minH0};const iw=Math.max(innerWidth,C_W);const rows=flowLayoutKids(kids,iw);let totalH=VH_TOP+V_PAD+V_PAD,maxRowW=0;rows.forEach((rowKids,ri)=>{const maxTagH=rowKids.reduce((m,k)=>Math.max(m,tagHeightFor(k)),0);const rowH=rowKids.reduce((m,k)=>Math.max(m,compactCellH(k)),0);const rowW=rowKids.reduce((sum,k,i)=>sum+compactCellW(k)+(i>0?C_GAP:0),0);maxRowW=Math.max(maxRowW,rowW);totalH+=maxTagH+rowH+(ri<rows.length-1?C_GAP:0);});return{w:Math.max(V_PAD*2+maxRowW,minW0),h:Math.max(totalH,minH0)};}
 function reflowChildren(vid){const vlan=nodes.find(n=>n.id===vid);if(!vlan)return;const kids=getChildren(vid);if(!kids.length)return;const innerWidth=Math.max(nW(vlan)-V_PAD*2,C_W);const rows=flowLayoutKids(kids,innerWidth);let y=vlan.y+VH_TOP+V_PAD;rows.forEach(rowKids=>{const maxTagH=rowKids.reduce((m,k)=>Math.max(m,tagHeightFor(k)),0);const rowH=rowKids.reduce((m,k)=>Math.max(m,compactCellH(k)),0);let x=vlan.x+V_PAD;rowKids.forEach(k=>{const newX=x,newY=y+maxTagH,ddx=newX-k.x,ddy=newY-k.y;k.x=newX;k.y=newY;if(CONTAINER_TYPES.has(k.type))shiftDescendants(k.id,ddx,ddy);else{k.w=C_W;k.h=C_H;}x+=compactCellW(k)+C_GAP;});y+=maxTagH+rowH+C_GAP;});}
 function snapChildren(vid){const vlan=nodes.find(n=>n.id===vid);if(!vlan)return;const kids=getChildren(vid);reflowChildren(vid);if(kids.length>0){const innerWidth=Math.max(nW(vlan)-V_PAD*2,C_W);const sz=minVlanSize(kids,innerWidth,vlan.type);vlan.w=sz.w;vlan.h=sz.h;}}
-function autoFitContainer(vid){const c=nodes.find(n=>n.id===vid);if(!c)return;const kids=getChildren(vid);const minW=MIN_W[c.type]||164,minH=MIN_H[c.type]||100;if(!kids.length){c.w=Math.max(c.w||minW,minW);c.h=Math.max(c.h||minH,minH);return;}let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;kids.forEach(k=>{mnX=Math.min(mnX,k.x);mnY=Math.min(mnY,k.y-tagHeightFor(k));mxX=Math.max(mxX,k.x+nW(k));mxY=Math.max(mxY,k.y+nH(k));});const newX=mnX-V_PAD,newY=mnY-VH_TOP-V_PAD,newW=Math.max((mxX+V_PAD)-newX,minW),newH=Math.max((mxY+V_PAD)-newY,minH);c.x=snap8(newX);c.y=snap8(newY);c.w=Math.round(newW);c.h=Math.round(newH);}
+function autoFitContainer(vid){
+  const c=nodes.find(n=>n.id===vid);
+  if(!c) return;
+  const kids=getChildren(vid);
+  const minW=MIN_W[c.type]||164, minH=MIN_H[c.type]||100;
+  if(!kids.length){
+    c.w=Math.max(c.w||minW,minW);
+    c.h=Math.max(c.h||minH,minH);
+    return;
+  }
+  let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
+  kids.forEach(k=>{
+    mnX=Math.min(mnX,k.x);
+    mnY=Math.min(mnY,k.y-tagHeightFor(k));
+    mxX=Math.max(mxX,k.x+nW(k));
+    mxY=Math.max(mxY,k.y+nH(k));
+  });
+
+  if(c.lockBorder){
+    // Locked: only expand edges when children exceed bounds.
+    let nx=c.x, ny=c.y, nw=c.w, nh=c.h;
+    if(mnX-V_PAD < nx){ nw += nx-(mnX-V_PAD); nx=mnX-V_PAD; }
+    if(mnY-VH_TOP-V_PAD < ny){ nh += ny-(mnY-VH_TOP-V_PAD); ny=mnY-VH_TOP-V_PAD; }
+    if(mxX+V_PAD > nx+nw){ nw=(mxX+V_PAD)-nx; }
+    if(mxY+V_PAD > ny+nh){ nh=(mxY+V_PAD)-ny; }
+    nw=Math.max(nw,minW);
+    nh=Math.max(nh,minH);
+    c.x=nx; c.y=ny; c.w=Math.round(nw); c.h=Math.round(nh);
+  } else {
+    // Unlocked: exact fit — no snapping. Children are already on the
+    // 4px grid, and V_PAD (12) is a multiple of 4, so the container
+    // naturally lands on-grid with perfectly symmetric padding.
+    const nx=mnX-V_PAD;
+    const ny=mnY-VH_TOP-V_PAD;
+    const nw=Math.max((mxX+V_PAD)-nx,minW);
+    const nh=Math.max((mxY+V_PAD)-ny,minH);
+    c.x=nx; c.y=ny; c.w=Math.round(nw); c.h=Math.round(nh);
+  }
+}
 function relayoutContainer(vid,_seen){const seen=_seen||new Set();if(seen.has(vid))return;seen.add(vid);const c=nodes.find(n=>n.id===vid);if(!c)return;if(c.layout==='free')autoFitContainer(vid);else snapChildren(vid);if(c.parentId!=null)relayoutContainer(c.parentId,seen);}
 function liveExpandFreeAncestors(startParentId){let cur=startParentId!=null?nodes.find(n=>n.id===startParentId):null;const seen=new Set();while(cur&&!seen.has(cur.id)&&cur.layout==='free'){seen.add(cur.id);autoFitContainer(cur.id);cur=cur.parentId!=null?nodes.find(n=>n.id===cur.parentId):null;}}
 function hitContainer(pt,excludeIds){const skip=excludeIds instanceof Set?excludeIds:new Set(excludeIds==null?[]:[excludeIds]);let best=null,bestDepth=-1;for(const n of nodes){if(!CONTAINER_TYPES.has(n.type)||skip.has(n.id))continue;if(pt.x>=n.x&&pt.x<=n.x+nW(n)&&pt.y>=n.y&&pt.y<=n.y+nH(n)){const d=containerDepth(n);if(d>bestDepth){bestDepth=d;best=n.id;}}}return best;}
@@ -852,21 +891,79 @@ function canvasMM(e){
   if(edgeStart!==null){const old=$('edge-tmp');if(old)old.remove();const fn=nodes.find(n=>n.id===edgeStart);if(!fn)return;const pt=svgPt(e),fp=nearestPort(fn,pt.x,pt.y);const line=svgEl('line');line.setAttribute('id','edge-tmp');line.setAttribute('x1',fp.x);line.setAttribute('y1',fp.y);line.setAttribute('x2',pt.x);line.setAttribute('y2',pt.y);line.setAttribute('stroke','#3b82f6');line.setAttribute('stroke-width','1.5');line.setAttribute('stroke-dasharray','6,3');line.setAttribute('pointer-events','none');$('edges-layer').appendChild(line);}
 }
 function canvasMU(e){
-  if(panning){panning=null;$('canvas-wrap').style.cursor=tool==='pan'?'grab':'default';}
-  if(bgClick){if(!bgClick.moved){selectedNodes.clear();selectedEdge=null;selectedTagInfo=null;highlightedEdges.clear();closeNodeDetail();renderNodes();renderEdges();}bgClick=null;}
+  if(panning){
+    panning=null;
+    $('canvas-wrap').style.cursor=tool==='pan'?'grab':'default';
+  }
+  if(bgClick){
+    if(!bgClick.moved){
+      selectedNodes.clear();
+      selectedEdge=null;
+      selectedTagInfo=null;
+      highlightedEdges.clear();
+      closeNodeDetail();
+      renderNodes();
+      renderEdges();
+    }
+    bgClick=null;
+  }
   if(dragging){
     const n=nodes.find(n=>n.id===dragging.id);
-    if(n){const oldParent=n.parentId?nodes.find(p=>p.id===n.parentId):null;const oldParentIsFree=!!oldParent&&oldParent.layout==='free';
-      if(oldParentIsFree){if(e.altKey){const op=oldParent.id;n.parentId=null;relayoutContainer(op);toast('Removed from group','info');}else{autoFitContainer(oldParent.id);}n._detachArmed=false;render();}
-      else{const ctr={x:n.x+nW(n)/2,y:n.y+nH(n)/2};const exclude=CONTAINER_TYPES.has(n.type)?new Set([n.id,...getDescendantIds(n.id)]):n.id;const vid=hitContainer(ctr,exclude);
-        if(vid!==null&&n.parentId!==vid){if(n.parentId){const op=n.parentId;n.parentId=null;relayoutContainer(op);}n.parentId=vid;relayoutContainer(vid);toast('Snapped into group','success');render();}
+    if(n){
+      const oldParent=n.parentId?nodes.find(p=>p.id===n.parentId):null;
+      const oldParentIsFree=!!oldParent&&oldParent.layout==='free';
+      if(oldParentIsFree){
+        if(e.altKey){
+          const op=oldParent.id;
+          n.parentId=null;
+          relayoutContainer(op);
+          toast('Removed from group','info');
+        } else {
+          autoFitContainer(oldParent.id);
+        }
+        n._detachArmed=false;
+        render();
+      } else {
+        const ctr={x:n.x+nW(n)/2,y:n.y+nH(n)/2};
+        const exclude=CONTAINER_TYPES.has(n.type)?new Set([n.id,...getDescendantIds(n.id)]):n.id;
+        const vid=hitContainer(ctr,exclude);
+        if(vid!==null&&n.parentId!==vid){
+          if(n.parentId){const op=n.parentId;n.parentId=null;relayoutContainer(op);}
+          n.parentId=vid;
+          relayoutContainer(vid);
+          toast('Snapped into group','success');
+          render();
+        }
         // BUG FIX: center still inside the same compact container but body may extend outside.
         // Without this branch, relayoutContainer is never called and the node stays at whatever
         // position it was dragged to, potentially visually escaping the container bounds.
-        else if(n.parentId&&vid===n.parentId&&oldParent&&oldParent.layout!=='free'){relayoutContainer(n.parentId);render();}
-        else if(n.parentId&&vid===null&&oldParent){const inside=n.x>=oldParent.x&&n.y>=oldParent.y&&n.x+nW(n)<=oldParent.x+nW(oldParent)&&n.y+nH(n)<=oldParent.y+nH(oldParent);if(!inside){const op=n.parentId;n.parentId=null;relayoutContainer(op);toast('Removed from group','info');render();}}}}
-    pushUndoIfChanged(dragging.beforeSnap);dragging=null;
+        else if(n.parentId&&vid===n.parentId&&oldParent&&oldParent.layout!=='free'){
+          relayoutContainer(n.parentId);
+          render();
+        }
+        else if(n.parentId&&vid===null&&oldParent){
+          const inside=n.x>=oldParent.x&&n.y>=oldParent.y
+                     &&n.x+nW(n)<=oldParent.x+nW(oldParent)
+                     &&n.y+nH(n)<=oldParent.y+nH(oldParent);
+          if(!inside){
+            const op=n.parentId;
+            n.parentId=null;
+            relayoutContainer(op);
+            toast('Removed from group','info');
+            render();
+          }
+        }
+      }
+    }
+    pushUndoIfChanged(dragging.beforeSnap);
+    dragging=null;
   }
+
+  // ── PATCH: after a resize, relayout the resized node's parent (and
+  // ancestors via relayoutContainer's upward recursion) so the parent
+  // re-wraps the resized child. Only applies to containers — regular
+  // nodes don't have children and their parent uses C_W/C_H, so a
+  // relayout would reset their manually-resized width/height.
   if(resizing)pushUndoIfChanged(resizing.beforeSnap);
   resizing=null;clearVlanHi();
 }
@@ -899,7 +996,12 @@ function addNode(type,x,y,doRender=true){
   const count=nodes.filter(n=>n.type===type).length+1;
   const pfx={server:'server',workstation:'ws',router:'router',switch:'sw',firewall:'fw',vlan:'VLAN',modem:'modem',gateway:'gw',wap:'wap',camera:'cam',other:'device',site:'site',group:'group',person:'person'};
   const defaultName=`${pfx[type]||type}-${String(count).padStart(2,'0')}`;
-  const n={id:nextId++,type,x:x??100+Math.random()*300,y:y??100+Math.random()*200,w:DEF_W[type]||140,h:DEF_H[type]||60,name:defaultName,names:[defaultName],ip:'',ips:[],vlan:'',notes:'',infoTabs:[],parentId:null,tags:[],offline:false,excludeWeb:CONTAINER_TYPES.has(type),layout:CONTAINER_TYPES.has(type)?'compact':undefined,expanded:false,collapsedH:null,colourId:null};
+  const n={id:nextId++,type,x:x??100+Math.random()*300,y:y??100+Math.random()*200,
+    w:DEF_W[type]||140,h:DEF_H[type]||60,name:defaultName,names:[defaultName],ip:'',ips:[],
+    vlan:'',notes:'',infoTabs:[],parentId:null,tags:[],offline:false,
+    excludeWeb:CONTAINER_TYPES.has(type),layout:CONTAINER_TYPES.has(type)?'compact':undefined,
+    lockBorder:false,    // ← add this line
+    expanded:false,collapsedH:null,colourId:null};
   nodes.push(n);if(doRender)render();return n;
 }
 
@@ -925,7 +1027,69 @@ document.addEventListener('keydown',e=>{const tag=document.activeElement?.tagNam
 });
 
 // ── CONTEXT MENU ───────────────────────────────────
-function showCtx(e,type,id,extra){if(mode==='presentation')return;ctxTarget={type,id,extra};const m=$('ctx-menu');const isNode=type==='node',isEdge=type==='edge',isTag=type==='tag';$('ctx-edit').style.display=isNode?'flex':'none';$('ctx-tags').style.display=isNode?'flex':'none';$('ctx-conn').style.display=isNode?'flex':'none';$('ctx-offline').style.display=isNode?'flex':'none';$('ctx-web-exclude').style.display=isNode?'flex':'none';$('ctx-edge-edit').style.display=isEdge?'flex':'none';$('ctx-tag-edit').style.display=isTag?'flex':'none';$('ctx-tag-remove').style.display=isTag?'flex':'none';$('ctx-del').style.display=isTag?'none':'flex';const n=isNode?nodes.find(n=>n.id===id):null;const isFreeCapable=!!n&&CONTAINER_TYPES.has(n.type);$('ctx-layout').style.display=isFreeCapable?'flex':'none';const isExpandCapable=!!n&&!CONTAINER_TYPES.has(n.type);$('ctx-expand').style.display=isExpandCapable?'flex':'none';if(isNode){const ol=$('ctx-offline-label');if(ol)ol.textContent=n?.offline?'Mark Online':'Toggle Offline';const wl=$('ctx-web-exclude-label');if(wl)wl.textContent=n?.excludeWeb?'Include in Web':'Exclude from Web';if(isFreeCapable){const ll=$('ctx-layout-label');if(ll)ll.textContent=n.layout==='free'?'Switch to Compact Layout':'Switch to Free Layout';}if(isExpandCapable){const el=$('ctx-expand-label');if(el)el.textContent=n.expanded?'Collapse Node':'Expand Node';}}m.style.display='block';const mW=m.offsetWidth||170,mH=m.offsetHeight||150;m.style.left=Math.max(4,Math.min(e.clientX,window.innerWidth-mW-4))+'px';m.style.top=Math.max(4,Math.min(e.clientY,window.innerHeight-mH-4))+'px';}
+function showCtx(e,type,id,extra){
+  if(mode==='presentation')return;
+  ctxTarget={type,id,extra};
+  const m=$('ctx-menu');
+  const isNode=type==='node',isEdge=type==='edge',isTag=type==='tag';
+
+  // ── Show/hide items based on target type ──
+  $('ctx-edit').style.display=isNode?'flex':'none';
+  $('ctx-tags').style.display=isNode?'flex':'none';
+  $('ctx-conn').style.display=isNode?'flex':'none';
+  $('ctx-offline').style.display=isNode?'flex':'none';
+  $('ctx-web-exclude').style.display=isNode?'flex':'none';
+  $('ctx-edge-edit').style.display=isEdge?'flex':'none';
+  $('ctx-tag-edit').style.display=isTag?'flex':'none';
+  $('ctx-tag-remove').style.display=isTag?'flex':'none';
+  $('ctx-del').style.display=isTag?'none':'flex';
+
+  const n=isNode?nodes.find(n=>n.id===id):null;
+
+  // Layout toggle — visible for all container types (vlan/site/group)
+  const isFreeCapable=!!n&&CONTAINER_TYPES.has(n.type);
+  $('ctx-layout').style.display=isFreeCapable?'flex':'none';
+
+  // Lock border — visible ONLY for free-layout containers
+  // ── NEW ──
+  const isLockable=!!n&&CONTAINER_TYPES.has(n.type)&&n.layout==='free';
+  $('ctx-lock-border').style.display=isLockable?'flex':'none';
+  // ── /NEW ──
+
+  // Expand/collapse — visible for non-container nodes only
+  const isExpandCapable=!!n&&!CONTAINER_TYPES.has(n.type);
+  $('ctx-expand').style.display=isExpandCapable?'flex':'none';
+
+  // ── Set dynamic labels ──
+  if(isNode){
+    const ol=$('ctx-offline-label');
+    if(ol)ol.textContent=n?.offline?'Mark Online':'Toggle Offline';
+    const wl=$('ctx-web-exclude-label');
+    if(wl)wl.textContent=n?.excludeWeb?'Include in Web':'Exclude from Web';
+
+    if(isFreeCapable){
+      const ll=$('ctx-layout-label');
+      if(ll)ll.textContent=n.layout==='free'?'Switch to Compact Layout':'Switch to Free Layout';
+    }
+
+    // ── NEW: lock border label ──
+    if(isLockable){
+      const lbl=$('ctx-lock-border-label');
+      if(lbl)lbl.textContent=n.lockBorder?'Unlock Border':'Lock Border';
+    }
+    // ── /NEW ──
+
+    if(isExpandCapable){
+      const el=$('ctx-expand-label');
+      if(el)el.textContent=n.expanded?'Collapse Node':'Expand Node';
+    }
+  }
+
+  m.style.display='block';
+  const mW=m.offsetWidth||170,mH=m.offsetHeight||150;
+  m.style.left=Math.max(4,Math.min(e.clientX,window.innerWidth-mW-4))+'px';
+  m.style.top=Math.max(4,Math.min(e.clientY,window.innerHeight-mH-4))+'px';
+}
 function hideCtx(){$('ctx-menu').style.display='none';ctxTarget=null;}
 document.addEventListener('click',hideCtx);
 function ctxEdgeEdit(){if(ctxTarget?.type==='edge')openEdgeModal(ctxTarget.id);hideCtx();}
@@ -935,6 +1099,18 @@ function ctxConn(){if(ctxTarget?.type==='node'){startEdge(ctxTarget.id);setTool(
 function ctxToggleOffline(){if(!ctxTarget||ctxTarget.type!=='node')return;const n=nodes.find(n=>n.id===ctxTarget.id);if(n){pushUndo();n.offline=!n.offline;render();toast(n.offline?'Marked offline':'Marked online','info');}hideCtx();}
 function ctxToggleWebExclude(){if(!ctxTarget||ctxTarget.type!=='node')return;const n=nodes.find(n=>n.id===ctxTarget.id);if(n){pushUndo();n.excludeWeb=!n.excludeWeb;if(selectedNodes.size)updateSpiderweb();render();toast(n.excludeWeb?'Excluded from web':'Included in web','info');}hideCtx();}
 function ctxToggleLayout(){if(!ctxTarget||ctxTarget.type!=='node')return;const n=nodes.find(n=>n.id===ctxTarget.id);if(n&&CONTAINER_TYPES.has(n.type)){pushUndo();n.layout=n.layout==='free'?'compact':'free';relayoutContainer(n.id);render();toast(n.layout==='free'?'Switched to free layout':'Switched to compact layout','info');}hideCtx();}
+function ctxToggleLockBorder(){
+  if(!ctxTarget||ctxTarget.type!=='node')return;
+  const n=nodes.find(n=>n.id===ctxTarget.id);
+  if(n&&CONTAINER_TYPES.has(n.type)&&n.layout==='free'){
+    pushUndo();
+    n.lockBorder=!n.lockBorder;
+    relayoutContainer(n.id);
+    render();
+    toast(n.lockBorder?'Border locked':'Border unlocked','info');
+  }
+  hideCtx();
+}
 function ctxToggleExpand(){if(!ctxTarget||ctxTarget.type!=='node')return;const id=ctxTarget.id;hideCtx();toggleNodeExpand(id);}
 function ctxDel(){if(!ctxTarget)return;pushUndo();if(ctxTarget.type==='node'){const n=nodes.find(n=>n.id===ctxTarget.id);const parentId=n?.parentId;const idSet=collectDeleteSet([ctxTarget.id]);nodes=nodes.filter(n=>!idSet.has(n.id));edges=edges.filter(e=>!idSet.has(e.from)&&!idSet.has(e.to));edges.forEach(e=>{if(Array.isArray(e.via))e.via=e.via.filter(v=>!idSet.has(v));});if(selectedEdge!==null&&!edges.some(e=>e.id===selectedEdge))selectedEdge=null;if(parentId&&nodes.find(n=>n.id===parentId))relayoutContainer(parentId);selectedNodes.clear();toast('Deleted','info');}else{edges=edges.filter(e=>e.id!==ctxTarget.id);if(selectedEdge===ctxTarget.id)selectedEdge=null;toast('Edge deleted','info');}hideCtx();render();}
 
@@ -1126,10 +1302,118 @@ function validateAndSanitizeNode(raw){
   let names=[];if(Array.isArray(raw.names)){names=raw.names.slice(0,MAX_NAMES).map(v=>sanitizeString(v,MAX_NAME_LEN)).filter(Boolean);}else if(typeof raw.name==='string'&&raw.name.trim()){names=[sanitizeString(raw.name.trim(),MAX_NAME_LEN)];}
   const primaryName=names[0]||sanitizeString(raw.name||type,MAX_NAME_LEN);if(!names.length)names=[primaryName];
   const validColourIds=new Set(EDGE_COLOURS.filter(c=>c.id!=='default').map(c=>c.id));const colourId=validColourIds.has(raw.colourId)?raw.colourId:null;
-  return{id,type,x:Math.max(-10000,Math.min(x,100000)),y:Math.max(-10000,Math.min(y,100000)),w,h,name:primaryName,names,ip:ips[0]||'',ips,vlan:sanitizeString(raw.vlan||'',MAX_NAME_LEN),notes:sanitizeString(raw.notes||'',MAX_NOTES_LEN),offline:raw.offline===true,excludeWeb:raw.excludeWeb===true,expanded:raw.expanded===true,collapsedH:typeof raw.collapsedH==='number'&&isFinite(raw.collapsedH)?raw.collapsedH:null,layout:raw.layout==='free'?'free':'compact',parentId,tags,infoTabs,colourId};
+  return{
+    id,type,
+    x:Math.max(-10000,Math.min(x,100000)),
+    y:Math.max(-10000,Math.min(y,100000)),
+    w,h,
+    name:primaryName,names,ip:ips[0]||'',ips,
+    vlan:sanitizeString(raw.vlan||'',MAX_NAME_LEN),
+    notes:sanitizeString(raw.notes||'',MAX_NOTES_LEN),
+    offline:raw.offline===true,
+    excludeWeb:raw.excludeWeb===true,
+    expanded:raw.expanded===true,
+    collapsedH:typeof raw.collapsedH==='number'&&isFinite(raw.collapsedH)?raw.collapsedH:null,
+    layout:raw.layout==='free'?'free':'compact',
+    lockBorder:raw.lockBorder===true,
+    parentId,tags,infoTabs,colourId
+  };
 }
 function validateAndSanitizeEdge(raw,nodeIds){if(!raw||typeof raw!=='object')return null;const id=Number.isInteger(raw.id)&&raw.id>0?raw.id:null;const from=Number.isInteger(raw.from)&&nodeIds.has(raw.from)?raw.from:null;const to=Number.isInteger(raw.to)&&nodeIds.has(raw.to)?raw.to:null;if(id===null||from===null||to===null||from===to)return null;const validColours=new Set(EDGE_COLOURS.map(c=>c.id));const validDirs=new Set(['none','forward','backward','both']);let via=[];if(Array.isArray(raw.via)){const seen=new Set();via=raw.via.filter(v=>Number.isInteger(v)&&nodeIds.has(v)&&v!==from&&v!==to&&!seen.has(v)&&seen.add(v)).slice(0,5);}let infoTabs=[];if(Array.isArray(raw.infoTabs)){infoTabs=raw.infoTabs.slice(0,MAX_TABS).map(t=>({title:sanitizeString(t.title||'Info',MAX_NAME_LEN),content:sanitizeString(t.content||'',MAX_TAB_CONTENT_LEN)}));}return{id,from,to,colour:validColours.has(raw.colour)?raw.colour:'default',direction:validDirs.has(raw.direction)?raw.direction:'none',label:sanitizeString(raw.label||'',40),notes:sanitizeString(raw.notes||'',1000),via,infoTabs};}
-function handleFileImport(e){const file=e.target.files[0];if(!file)return;if(file.size>10*1024*1024){toast('Import failed: file too large (max 10 MB)','error');e.target.value='';return;}const reader=new FileReader();reader.onerror=()=>{toast('Import failed: could not read file','error');e.target.value='';};reader.onload=ev=>{try{const data=JSON.parse(ev.target.result);if(!Array.isArray(data.nodes)||!Array.isArray(data.edges))throw new Error('Missing nodes/edges arrays');if(data.nodes.length>MAX_NODES)throw new Error(`Too many nodes (max ${MAX_NODES})`);if(data.edges.length>MAX_EDGES)throw new Error(`Too many edges (max ${MAX_EDGES})`);const sanitizedNodes=data.nodes.map(validateAndSanitizeNode).filter(Boolean);const droppedNodes=data.nodes.length-sanitizedNodes.length;const nodeIds=new Set(sanitizedNodes.map(n=>n.id));const byId=new Map(sanitizedNodes.map(n=>[n.id,n]));sanitizedNodes.forEach(n=>{if(n.parentId!==null&&!nodeIds.has(n.parentId))n.parentId=null;if(n.parentId===n.id)n.parentId=null;if(n.parentId!==null){const par=byId.get(n.parentId);if(!par||!CONTAINER_TYPES.has(par.type))n.parentId=null;}});sanitizedNodes.forEach(n=>{const seen=new Set([n.id]);let cur=n;while(cur.parentId!==null){if(seen.has(cur.parentId)){n.parentId=null;break;}seen.add(cur.parentId);cur=byId.get(cur.parentId);if(!cur)break;}});const edgePairs=new Set();const sanitizedEdges=data.edges.map(raw=>validateAndSanitizeEdge(raw,nodeIds)).filter(e=>{if(!e)return false;const key=`${Math.min(e.from,e.to)}-${Math.max(e.from,e.to)}`;if(edgePairs.has(key))return false;edgePairs.add(key);return true;});const maxNodeId=sanitizedNodes.reduce((m,n)=>Math.max(m,n.id),0);const maxEdgeId=sanitizedEdges.reduce((m,e)=>Math.max(m,e.id),0);pushUndo();nodes=sanitizedNodes;edges=sanitizedEdges;mapName=sanitizeString(data.name||'Imported',MAX_NAME_LEN);nextId=Math.max(maxNodeId,maxEdgeId)+1;$('map-name-display').textContent=mapName;render();fitToScreen();const dropWarn=droppedNodes>0?` (${droppedNodes} invalid node(s) skipped)`:'';toast(`Imported "${mapName}" — ${nodes.length} nodes, ${edges.length} edges${dropWarn}`,'success');serverImportSave().catch(()=>{});}catch(err){toast(`Import failed: ${err.message||'invalid JSON'}`,'error');}};reader.readAsText(file);e.target.value='';}
+function handleFileImport(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  if(file.size>10*1024*1024){
+    toast('Import failed: file too large (max 10 MB)','error');
+    e.target.value='';
+    return;
+  }
+  const reader=new FileReader();
+  reader.onerror=()=>{
+    toast('Import failed: could not read file','error');
+    e.target.value='';
+  };
+  reader.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!Array.isArray(data.nodes)||!Array.isArray(data.edges))
+        throw new Error('Missing nodes/edges arrays');
+      if(data.nodes.length>MAX_NODES)
+        throw new Error(`Too many nodes (max ${MAX_NODES})`);
+      if(data.edges.length>MAX_EDGES)
+        throw new Error(`Too many edges (max ${MAX_EDGES})`);
+
+      const sanitizedNodes=data.nodes.map(validateAndSanitizeNode).filter(Boolean);
+      const droppedNodes=data.nodes.length-sanitizedNodes.length;
+      const nodeIds=new Set(sanitizedNodes.map(n=>n.id));
+      const byId=new Map(sanitizedNodes.map(n=>[n.id,n]));
+
+      // Repair parentId references: drop missing/invalid/self/container-non-parent links
+      sanitizedNodes.forEach(n=>{
+        if(n.parentId!==null&&!nodeIds.has(n.parentId)) n.parentId=null;
+        if(n.parentId===n.id) n.parentId=null;
+        if(n.parentId!==null){
+          const par=byId.get(n.parentId);
+          if(!par||!CONTAINER_TYPES.has(par.type)) n.parentId=null;
+        }
+      });
+
+      // Break parentId cycles
+      sanitizedNodes.forEach(n=>{
+        const seen=new Set([n.id]);
+        let cur=n;
+        while(cur.parentId!==null){
+          if(seen.has(cur.parentId)){ n.parentId=null; break; }
+          seen.add(cur.parentId);
+          cur=byId.get(cur.parentId);
+          if(!cur) break;
+        }
+      });
+
+      // Dedupe undirected edge pairs
+      const edgePairs=new Set();
+      const sanitizedEdges=data.edges.map(raw=>validateAndSanitizeEdge(raw,nodeIds)).filter(e=>{
+        if(!e) return false;
+        const key=`${Math.min(e.from,e.to)}-${Math.max(e.from,e.to)}`;
+        if(edgePairs.has(key)) return false;
+        edgePairs.add(key);
+        return true;
+      });
+
+      const maxNodeId=sanitizedNodes.reduce((m,n)=>Math.max(m,n.id),0);
+      const maxEdgeId=sanitizedEdges.reduce((m,e)=>Math.max(m,e.id),0);
+
+      pushUndo();
+      nodes=sanitizedNodes;
+      edges=sanitizedEdges;
+      mapName=sanitizeString(data.name||'Imported',MAX_NAME_LEN);
+      nextId=Math.max(maxNodeId,maxEdgeId)+1;
+      $('map-name-display').textContent=mapName;
+
+      // ── PATCH: reconcile nested container sizes before first render.
+      // Deepest-first so outer containers measure their children's
+      // final dimensions instead of stale values from the saved JSON.
+      {
+        const _cs=nodes.filter(n=>CONTAINER_TYPES.has(n.type));
+        _cs.sort((a,b)=>containerDepth(b)-containerDepth(a));
+        _cs.forEach(c=>{
+          if(c.layout==='free') autoFitContainer(c.id);
+          else snapChildren(c.id);
+        });
+      }
+
+      render();
+      fitToScreen();
+      const dropWarn=droppedNodes>0?` (${droppedNodes} invalid node(s) skipped)`:'';
+      toast(`Imported "${mapName}" — ${nodes.length} nodes, ${edges.length} edges${dropWarn}`,'success');
+      serverImportSave().catch(()=>{});
+    }catch(err){
+      toast(`Import failed: ${err.message||'invalid JSON'}`,'error');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value='';
+}
 
 // ── TAG MODAL ──────────────────────────────────────
 let tagEditingId=null,tagModalState=[];
@@ -1400,6 +1684,19 @@ async function loadMapFromServer(id){
     window.location.hash = id;
     lastServerTime = Math.floor(Date.now()/1000);
     setSaveStatus('saved');
+
+    // ── PATCH: reconcile nested container sizes before first render.
+    // Deepest-first so outer containers measure their children's
+    // final dimensions instead of stale values from the saved JSON.
+    {
+      const _cs = nodes.filter(n => CONTAINER_TYPES.has(n.type));
+      _cs.sort((a, b) => containerDepth(b) - containerDepth(a));
+      _cs.forEach(c => {
+        if (c.layout === 'free') autoFitContainer(c.id);
+        else snapChildren(c.id);
+      });
+    }
+
     render(); fitToScreen();
     return true;
   } catch(err) {
@@ -1428,7 +1725,9 @@ async function createAndLoadNewMap(){
 
 async function guardUnsaved(){
   if (!savePending || !currentMapId) return true;
-  return showConfirmModal('You have unsaved changes. Continue without saving?');
+  clearTimeout(autosaveTimer);
+  await doSave();
+  return true;
 }
 
 // ── Map picker ─────────────────────────────────────
@@ -1581,13 +1880,24 @@ async function silentRefresh(id){
     const maxN=sNodes.reduce((m,n)=>Math.max(m,n.id),0);
     const maxE=sEdges.reduce((m,e)=>Math.max(m,e.id),0);
     nodes=sNodes; edges=sEdges;
-    mapName=typeof data.name==='string'?data.name.slice(0,MAX_NAME_LEN):mapName;
+    mapName=typeof data.name==='string'?data.data.name.slice(0,MAX_NAME_LEN):mapName;
     nextId=Math.max(maxN,maxE)+1;
     $('map-name-display').textContent=mapName;
     lastServerTime=Math.floor(Date.now()/1000);
     setSaveStatus('saved');
     $('pb-stale').classList.remove('show');
     undoStack=[]; redoStack=[];
+
+    // ── PATCH: reconcile nested container sizes before render.
+    {
+      const _cs = nodes.filter(n => CONTAINER_TYPES.has(n.type));
+      _cs.sort((a, b) => containerDepth(b) - containerDepth(a));
+      _cs.forEach(c => {
+        if (c.layout === 'free') autoFitContainer(c.id);
+        else snapChildren(c.id);
+      });
+    }
+
     render(); // no fitToScreen — viewport stays where the user left it
     toast('Map updated by another user','info');
   } catch{}
